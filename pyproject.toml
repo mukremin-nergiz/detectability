@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "detectability"
+version = "0.1.0.dev0"
+description = "Will your geophysical survey see it? Forward-modelled responses, station spacing and a detectability verdict for near-surface targets."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "BSD-3-Clause"
+authors = [{ name = "Mükremin Nergiz", email = "contact@mukreminnergiz.com" }]
+dependencies = ["numpy>=1.24"]
+
+[project.urls]
+Homepage = "https://detectability.mukreminnergiz.com"
+Repository = "https://github.com/mukremin-nergiz/detectability"
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+detectability = ["data/*.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
