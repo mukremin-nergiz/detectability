@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use Detectability, please cite it as below."
-title: "Detectability: will your geophysical survey see it?"
+title: "Detectability: Pre-survey detectability, modelled and reproducible"
 type: software
 abstract: >-
   Detectability predicts, before fieldwork, whether a gravity or magnetic survey will detect a buried target. It

@@ -1,4 +1,4 @@
-"""detectability: will your geophysical survey see the target?"""
+"""Detectability: pre-survey detectability, modelled and reproducible."""
 
 __version__ = "0.1.1"
 
