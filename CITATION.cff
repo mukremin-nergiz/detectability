@@ -8,7 +8,8 @@ authors:
     affiliation: "Independent Researcher, Sivas, Türkiye"
     orcid: "https://orcid.org/0009-0001-6789-2774"
     email: "contact@mukreminnergiz.com"
-version: "0.1.0.dev0"
+version: "0.1.0"
+date-released: "2026-11-04"
 license: BSD-3-Clause
 url: "https://detectability.mukreminnergiz.com"
 repository-code: "https://github.com/mukremin-nergiz/detectability"
@@ -18,3 +19,5 @@ keywords:
   - survey design
   - gravity
   - forward modelling
+  - magnetics
+  - IGRF
