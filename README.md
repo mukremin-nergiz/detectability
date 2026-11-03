@@ -62,9 +62,28 @@ in, and measured contrasts can be given instead.
 
 ## Validation
 
-Every model is checked against a result computed in a different way: analytical limits, numerical integration of
-point dipoles, Poisson's relation between the independent gravity and magnetic codes (including dipping dykes), and
-the British Geological Survey's IGRF-14 service at five sites. Run the tests with:
+Every model is checked against a result computed in a different way. Each row below is also a test: it fails if the
+error exceeds the tolerance. The error is the largest difference along the profile as a percentage of the largest
+reference value. Figures for each row: <https://detectability.mukreminnergiz.com/validation>.
+
+| Check | Geometry and method | Reference | Max. relative error | Tolerance |
+|---|---|---|---:|---:|
+| Analytical limit | Prism, gravity, far from the sensor | Point mass of the same mass | 1.9e-05 % | 0.01 % |
+| Analytical limit | Prism, gravity, wide and thin | Infinite Bouguer slab, 2πGΔρt | 0.0099 % | 0.1 % |
+| Analytical limit | Vertical step, gravity, far over the slab | Infinite Bouguer slab, 2πGΔρt | 4.8e-04 % | 0.01 % |
+| Approximation | Vertical cylinder, gravity, on its axis | Exact on-axis cylinder formula | 0.342 % | 3 % |
+| Independent formula | Horizontal cylinder, gravity | 2D polygon, 720 sides (Talwani; Won & Bevis) | 6.3e-12 % | 0.01 % |
+| Independent formula | Vertical dyke, gravity | 2D polygon (Won & Bevis) | 1.9e-13 % | 1.0e-06 % |
+| Numerical integration | Prism, gravity | 16³ Gauss–Legendre point masses | 2.9e-06 % | 0.001 % |
+| Numerical integration | Horizontal cylinder, magnetic | 3D dipoles integrated along strike | 2.2e-07 % | 0.01 % |
+| Numerical integration | Prism, magnetic | 16³ Gauss–Legendre point dipoles | 1.3e-12 % | 0.001 % |
+| Poisson's relation | Sphere, gravity ↔ magnetic | Vertical derivative of the gravity sphere | 1.4e-08 % | 0.001 % |
+| Poisson's relation | Vertical dyke, gravity ↔ magnetic | Vertical derivative of the gravity dyke | 2.2e-08 % | 1.0e-04 % |
+| Poisson's relation | Dipping dyke (60°), gravity ↔ magnetic | Vertical derivative of the gravity dyke | 2.6e-08 % | 1.0e-04 % |
+| Poisson's relation | Vertical contact, gravity ↔ magnetic | Vertical derivative of the gravity step | 3.9e-06 % | 1.0e-04 % |
+| Reference service | IGRF-14 main field, 5 sites | British Geological Survey IGRF-14 | 0.38 nT, 0.0005° | 1 nT, 0.002° |
+
+Regenerate this table with `python -m detectability.validation`. Run all tests (including these) with:
 
 ```bash
 pip install -e ".[test]"
