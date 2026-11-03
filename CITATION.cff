@@ -16,6 +16,14 @@ authors:
     orcid: "https://orcid.org/0009-0001-6789-2774"
     email: "contact@mukreminnergiz.com"
 version: "0.1.0"
+doi: 10.5281/zenodo.23931815
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23931815
+    description: "All versions (concept DOI)"
+  - type: doi
+    value: 10.5281/zenodo.23931816
+    description: "Version 0.1.0"
 date-released: "2026-11-04"
 license: BSD-3-Clause
 url: "https://detectability.mukreminnergiz.com"

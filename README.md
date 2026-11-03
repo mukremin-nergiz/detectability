@@ -2,6 +2,7 @@
 
 [![tests](https://github.com/mukremin-nergiz/detectability/actions/workflows/tests.yml/badge.svg)](https://github.com/mukremin-nergiz/detectability/actions/workflows/tests.yml)
 [![licence: BSD-3-Clause](https://img.shields.io/badge/licence-BSD--3--Clause-blue.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23931815.svg)](https://doi.org/10.5281/zenodo.23931815)
 
 **Will your geophysical survey see it?** Describe a buried target and a survey. Detectability models the gravity and
 magnetic response of the target, compares it with instrument and field noise, and gives a verdict for each method
@@ -80,7 +81,10 @@ not guarantees. Instrument presets are typical class values and are being checke
 
 See [CITATION.cff](CITATION.cff), or:
 
-> Nergiz, M. (2026). *Detectability: will your geophysical survey see it?* https://github.com/mukremin-nergiz/detectability
+> Nergiz, M. (2026). *Detectability: will your geophysical survey see it?* (Version 0.1.0) [Computer software].
+> Zenodo. https://doi.org/10.5281/zenodo.23931815
+
+The DOI above always resolves to the latest version; each release also has its own DOI on Zenodo.
 
 ## Author
 
