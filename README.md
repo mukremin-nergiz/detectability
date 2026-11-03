@@ -35,7 +35,7 @@ print(report.summary())
 ```
 
 ```text
-Detectability 0.1.0: sphere in limestone
+Detectability 0.1.1: sphere in limestone
 - gravity: peak 114 µGal, noise 11.2 µGal, S/N 10.2: clearly detectable
   stations every 5 m or less, profile at least 153 m long
 - magnetic: peak 0.462 nT, noise 2 nT, S/N 0.231: not detectable
@@ -75,7 +75,8 @@ pytest
 
 Flat topography, a homogeneous host and no regional trend; 2D targets are infinitely long along strike; the profile
 crosses the centre of the target; self-demagnetisation is neglected. Results are expectations under these assumptions,
-not guarantees. Instrument presets are typical class values and are being checked against manufacturers' data sheets.
+not guarantees. Instrument presets come from manufacturers' data sheets (`detect.INSTRUMENTS` lists each figure and its
+source); field noise, which usually dominates, is a stated assumption that you can change.
 
 ## Citation
 

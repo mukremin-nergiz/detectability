@@ -305,6 +305,11 @@ def evaluate(target, survey=None, methods=METHODS) -> Report:
             res = MethodResult(method, True, contrast=contrast, contrast_units=units, instrument=s.magnetometer,
                                instrument_noise=inst, field_noise=s.magnetic_field_noise, main_field=info)
         a = detect.assess(x, anomaly, noise, depth=t.depth_top, method=method)
+        preset = detect.INSTRUMENTS.get(res.instrument)
+        overridden = (s.gravity_instrument_noise if method == "gravity" else s.magnetic_instrument_noise) is not None
+        if preset and not overridden:
+            a.assumptions.append(f"{res.instrument}: {preset.noise:g} {a.units} per reading ({preset.basis}; "
+                                 f"{preset.reference} data sheet).")
         if t.shape in TWO_D:
             a.assumptions.append("2D target: infinitely long along strike, at right angles to the profile.")
         if method == "magnetic":

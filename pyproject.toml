@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "detectability"
-version = "0.1.0"
+version = "0.1.1"
 description = "Will your geophysical survey see it? Forward-modelled responses, station spacing and a detectability verdict for near-surface targets."
 readme = "README.md"
 keywords = ["geophysics", "gravity", "magnetics", "survey design", "near-surface", "forward modelling", "IGRF"]

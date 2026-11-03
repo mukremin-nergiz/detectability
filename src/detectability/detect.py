@@ -15,22 +15,45 @@ import numpy as np
 CLEAR, MARGINAL = 5.0, 2.0
 STATIONS_ACROSS = 5
 
-# Instrument repeatability in µGal (manufacturer specifications; to be verified against current data sheets).
-GRAVIMETERS_UGAL: dict[str, float] = {
-    "Scintrex CG-6": 5.0,
-    "Scintrex CG-5": 5.0,
-    "LaCoste & Romberg G": 10.0,
-}
-DEFAULT_FIELD_NOISE_UGAL = 10.0  # typical microgravity field noise (tares, drift residuals, terrain, cultural noise)
+@dataclass(frozen=True)
+class Instrument:
+    """An instrument preset: its noise, what the figure means and where it comes from (checked 4 Nov 2026)."""
 
-# Magnetometer sensitivity in nT by sensor class (typical values; to be verified against current data sheets). Field noise
-# (diurnal residuals after base-station correction, heading error, near-surface geology, cultural noise) usually dominates.
-MAGNETOMETERS_NT: dict[str, float] = {
-    "proton precession": 0.2,
-    "Overhauser": 0.05,
-    "caesium vapour": 0.01,
-    "fluxgate gradiometer": 0.1,
+    method: str          # "gravity" or "magnetic"
+    noise: float         # one standard deviation of a reading, in µGal (gravity) or nT (magnetic)
+    basis: str           # what the manufacturer's figure is
+    reference: str       # instrument the figure is taken from
+    source: str          # data sheet or publication
+
+
+INSTRUMENTS: dict[str, Instrument] = {
+    "Scintrex CG-6": Instrument(
+        "gravity", 5.0, "repeatability, standard deviation < 5 µGal", "Scintrex CG-6 Autograv",
+        "https://microglacoste.com/wp-content/uploads/2019/01/CG-6-Brochure_R5.pdf"),
+    "Scintrex CG-5": Instrument(
+        "gravity", 5.0, "standard deviation < 5 µGal (1 µGal resolution)", "Scintrex CG-5 Autograv",
+        "https://dmliefer.ru/sites/default/files/cg5.pdf"),
+    "LaCoste & Romberg G": Instrument(
+        "gravity", 20.0, "manufacturer's repeatability 10-20 µGal; the upper value is used", "LaCoste & Romberg Model G",
+        "https://sbgf.org.br/mysbgf/eventos/expanded_abstracts/8th_CISBGf/arq_938.pdf"),
+    "proton precession": Instrument(
+        "magnetic", 0.1, "resolution and sensitivity 0.1 nT", "Geometrics G-856AX",
+        "https://www.aseg.org.au/public/200/files/digital-library-files/856_DataSheet.pdf"),
+    "Overhauser": Instrument(
+        "magnetic", 0.022, "sensitivity 0.022 nT/√Hz, i.e. at 1 Hz", "GEM Systems GSM-19 v7",
+        "https://www.aseg.org.au/public/200/files/digital-library-files/GSM-19%20Overhauser%20v7_0%202%20Pag.pdf"),
+    "caesium vapour": Instrument(
+        "magnetic", 0.008, "noise < 0.008 nT/√Hz RMS, i.e. at 1 Hz", "Geometrics G-858",
+        "https://www.geomatrix.co.uk/land-products/magnetic/g-858/"),
 }
+# Fluxgate gradiometers (e.g. Bartington Grad601) measure a vertical gradient, not the total-field anomaly modelled
+# here, so they are not offered until a gradiometer response is implemented.
+
+GRAVIMETERS_UGAL: dict[str, float] = {k: v.noise for k, v in INSTRUMENTS.items() if v.method == "gravity"}
+MAGNETOMETERS_NT: dict[str, float] = {k: v.noise for k, v in INSTRUMENTS.items() if v.method == "magnetic"}
+
+# Field noise is what remains after corrections and usually dominates the instrument noise.
+DEFAULT_FIELD_NOISE_UGAL = 10.0  # microgravity: tares, drift residuals, terrain, cultural noise
 DEFAULT_FIELD_NOISE_NT = 2.0     # quiet rural site after diurnal correction; urban and industrial sites are far noisier
 
 UNITS = {"gravity": "µGal", "magnetic": "nT"}
