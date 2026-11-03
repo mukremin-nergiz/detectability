@@ -148,6 +148,37 @@ def dyke(x, top: float, bottom: float, width: float, susceptibility: float, ambi
     return polygon(x, verts, susceptibility, ambient, azimuth, height, remanence)
 
 
+def _to_profile_frame(vec: np.ndarray, azimuth: float) -> np.ndarray:
+    """(north, east, down) -> (along profile, across profile, down); right-handed like the input frame."""
+    a = np.radians(azimuth)
+    return np.array([vec[0] * np.cos(a) + vec[1] * np.sin(a), -vec[0] * np.sin(a) + vec[1] * np.cos(a), vec[2]])
+
+
+def prism(x, along1: float, along2: float, across1: float, across2: float, top: float, bottom: float,
+          susceptibility: float, ambient: Ambient, azimuth: float = 0.0, height: float = 0.0, remanence=None):
+    """Right rectangular prism (room, foundation, buried block, tank) with sides parallel and perpendicular to the
+    profile: [along1, along2] along it, [across1, across2] across it, from ``top`` to ``bottom`` depth.
+
+    From the gravity gradient tensor by Poisson's relation, B = mu0 / (4 pi) * T M with T per unit G * drho
+    (Blakely 1996, §5.2; equivalent to Bhattacharyya 1964).
+    """
+    from .gravity import prism_tensor
+
+    if top + height <= 0:
+        raise ValueError("the body must lie below the sensor (raise the sensor or bury the body)")
+    m = _to_profile_frame(magnetisation(susceptibility, ambient, remanence), azimuth)
+    f = _to_profile_frame(unit_vector(ambient.inclination, ambient.declination), azimuth)
+    t = prism_tensor(np.asarray(x, float), 0.0, along1, along2, across1, across2, top + height, bottom + height)
+    return MU0 / (4 * np.pi) * np.einsum("i,...ij,j->...", f, t, m) * T_TO_NT
+
+
+def vertical_cylinder(x, top: float, bottom: float, radius: float, susceptibility: float, ambient: Ambient,
+                      azimuth: float = 0.0, height: float = 0.0, remanence=None):
+    """Vertical cylinder (shaft, well, sinkhole pipe) as a square prism of equal cross-section (as in gravity)."""
+    half = radius * np.sqrt(np.pi) / 2.0
+    return prism(x, -half, half, -half, half, top, bottom, susceptibility, ambient, azimuth, height, remanence)
+
+
 def contact(x, top: float, bottom: float, susceptibility: float, ambient: Ambient, azimuth: float = 0.0,
             edge: float = 0.0, height: float = 0.0, remanence=None, far: float = 1e9):
     """2D vertical contact: a slab from ``top`` to ``bottom`` depth for x > ``edge`` (fault, edge of a fill or of a

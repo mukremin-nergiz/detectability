@@ -111,3 +111,50 @@ def test_checks():
     with pytest.raises(ValueError):
         magnetics.dyke(0.0, 0.0, 5.0, 1.0, CHI, MID)  # outcropping body with the sensor on the ground
     magnetics.dyke(np.array([0.0]), 0.0, 5.0, 1.0, CHI, MID, height=0.3)  # fine with the sensor above ground
+
+
+def _dipole_quadrature(x, box, chi, ambient, azimuth, height=0.0, n=16):
+    """Total-field anomaly of a prism as a Gauss-Legendre sum of point dipoles (independent check)."""
+    (a1, a2), (c1, c2), (z1, z2) = box
+    nodes, weights = np.polynomial.legendre.leggauss(n)
+    pts = [((hi - lo) / 2 * nodes + (hi + lo) / 2, (hi - lo) / 2 * weights) for lo, hi in box]
+    az = np.radians(azimuth)
+    along, across = np.array([np.cos(az), np.sin(az), 0.0]), np.array([-np.sin(az), np.cos(az), 0.0])
+    m = magnetics.magnetisation(chi, ambient)
+    f = magnetics.unit_vector(ambient.inclination, ambient.declination)
+    A, C, Z = np.meshgrid(pts[0][0], pts[1][0], pts[2][0], indexing="ij")
+    W = np.einsum("i,j,k->ijk", pts[0][1], pts[1][1], pts[2][1]).ravel()
+    src = A.ravel()[:, None] * along + C.ravel()[:, None] * across + Z.ravel()[:, None] * np.array([0, 0, 1.0])
+    out = []
+    for xi in np.atleast_1d(x):
+        r = xi * along - np.array([0, 0, height]) - src
+        dist = np.linalg.norm(r, axis=1, keepdims=True)
+        rhat = r / dist
+        b = MU0 / (4 * np.pi) * (3 * (rhat @ m)[:, None] * rhat - m) / dist**3
+        out.append(np.sum((b @ f) * W) * 1e9)
+    return np.array(out)
+
+
+def test_prism_matches_dipole_quadrature():
+    x = np.linspace(-30, 30, 25)
+    box = ((-3.0, 2.0), (-2.5, 3.5), (4.0, 7.0))
+    t = magnetics.prism(x, *box[0], *box[1], *box[2], CHI, MID, azimuth=30.0, height=0.5)
+    q = _dipole_quadrature(x, box, CHI, MID, 30.0, height=0.5)
+    assert np.allclose(t, q, rtol=0, atol=1e-5 * np.abs(q).max())
+
+
+def test_prism_far_field_matches_sphere():
+    a, z = 1.0, 60.0
+    x = np.linspace(-100, 100, 41)
+    t = magnetics.prism(x, -a, a, -a, a, z - a, z + a, CHI, MID, azimuth=15.0)
+    R = (3 * (2 * a) ** 3 / (4 * np.pi)) ** (1 / 3)
+    s = magnetics.sphere(x, z, R, CHI, MID, azimuth=15.0)
+    assert np.allclose(t, s, rtol=0, atol=1e-3 * np.abs(s).max())
+
+
+def test_dipping_dyke_poisson_relation():
+    # Gravity and magnetic polygon codes are independent; at the pole Poisson's relation links them.
+    x, top, bottom, w, dip, drho, d = np.linspace(-50, 50, 101), 3.0, 20.0, 4.0, 60.0, 1000.0, 1e-4
+    dg = (gravity.dyke(x, top - d, bottom - d, w, drho, dip=dip) - gravity.dyke(x, top + d, bottom + d, w, drho, dip=dip)) / (2 * d)
+    t = magnetics.dyke(x, top, bottom, w, CHI, POLE, dip=dip)
+    assert np.allclose(t, _poisson(dg, CHI, POLE, drho), rtol=0, atol=1e-6 * np.abs(t).max())

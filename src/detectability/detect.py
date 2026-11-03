@@ -58,7 +58,7 @@ class Assessment:
     peak: float                 # largest |anomaly| (bell) or step amplitude, in ``units``
     peak_at: float              # position of the peak, m
     width: float                # full width at half maximum (bell) or 25-75 % transition width (step), m
-    shape: str                  # "bell" or "step"
+    shape: str                  # "bell", "step" or "none" (no contrast)
     noise: float                # effective noise, same units as peak
     snr: float
     verdict: str                # "clearly detectable" | "marginal" | "not detectable"
@@ -100,6 +100,10 @@ def assess(x, anomaly, noise: float, depth: float, method: str = "gravity") -> A
     x = np.asarray(x, float)
     g = np.asarray(anomaly, float)
     a = np.abs(g)
+    unit = UNITS.get(method, "")
+    if not np.any(a > 0):
+        return Assessment(method, 0.0, 0.0, 0.0, "none", noise, 0.0, "not detectable", 0.0, 0.0,
+                          ["No physical-property contrast between target and host for this method."], unit)
     peak_i = int(np.argmax(a))
     peak = float(a[peak_i])
     shape = "bell" if max(a[0], a[-1]) < 0.1 * peak else "step"
@@ -109,7 +113,6 @@ def assess(x, anomaly, noise: float, depth: float, method: str = "gravity") -> A
     snr = peak / noise if noise > 0 else float("inf")
     verdict = "clearly detectable" if snr >= CLEAR else "marginal" if snr >= MARGINAL else "not detectable"
     spacing = _nice(width / STATIONS_ACROSS)
-    unit = UNITS.get(method, "")
     length = float(max(6.0 * depth, 4.0 * width))
     assumptions = [
         f"Signal-to-noise thresholds: >= {CLEAR:g} clearly detectable, {MARGINAL:g}-{CLEAR:g} marginal, < {MARGINAL:g} not detectable.",

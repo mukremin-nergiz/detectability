@@ -82,3 +82,38 @@ def test_buried_checks():
         gravity.sphere(0.0, 3.0, 5.0, DRHO)
     with pytest.raises(ValueError):
         gravity.prism(0.0, 0.0, 1, 0, 0, 1, 0, 1, DRHO)
+
+
+def test_prism_tensor_traceless_symmetric():
+    x = np.linspace(-30, 30, 61)
+    t = gravity.prism_tensor(x, 3.0, -4, 6, -2, 5, 2.0, 9.0)
+    assert np.allclose(np.trace(t, axis1=-2, axis2=-1), 0.0, atol=1e-9)
+    assert np.allclose(t, np.swapaxes(t, -1, -2))
+
+
+def test_prism_tensor_matches_finite_differences_of_gz():
+    x, y, d = np.linspace(-25, 25, 51), 1.5, 1e-4
+    box = (-4.0, 6.0, -2.0, 5.0, 2.0, 9.0)
+    gz = lambda xx, yy, dz=0.0: gravity.prism(xx, yy, *box[:4], box[4] + dz, box[5] + dz, 1.0) / G
+    t = gravity.prism_tensor(x, y, *box)
+    assert np.allclose(t[:, 2, 2], (gz(x, y, -d) - gz(x, y, d)) / (2 * d), rtol=0, atol=1e-6)  # observer down = body up
+    assert np.allclose(t[:, 2, 0], (gz(x + d, y) - gz(x - d, y)) / (2 * d), rtol=0, atol=1e-6)
+    assert np.allclose(t[:, 2, 1], (gz(x, y + d) - gz(x, y - d)) / (2 * d), rtol=0, atol=1e-6)
+
+
+def test_polygon_matches_dyke_and_cylinder():
+    x = np.linspace(-40, 40, 81)
+    rect = [(5, 3), (9, 3), (9, 15), (5, 15)]
+    assert np.allclose(gravity.polygon(x, rect, 500.0), gravity.dyke(x, 3, 15, 4, 500.0, centre=7), rtol=1e-10)
+    assert np.allclose(gravity.polygon(x, rect[::-1], 500.0), gravity.polygon(x, rect, 500.0))
+    n, R, z = 720, 2.0, 8.0
+    Rn = R * np.sqrt(2 * np.pi / (n * np.sin(2 * np.pi / n)))
+    a = np.linspace(0, 2 * np.pi, n, endpoint=False)
+    circle = np.column_stack([Rn * np.cos(a), z + Rn * np.sin(a)])
+    assert np.allclose(gravity.polygon(x, circle, 500.0), gravity.horizontal_cylinder(x, z, R, 500.0), rtol=1e-4)
+
+
+def test_dipping_dyke_shifts_anomaly_down_dip():
+    x = np.linspace(-60, 60, 241)
+    g = gravity.dyke(x, 2.0, 30.0, 3.0, 400.0, dip=45.0)
+    assert x[np.argmax(g)] > 0
