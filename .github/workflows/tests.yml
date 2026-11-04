@@ -22,3 +22,16 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install ".[test]"
       - run: pytest -q
+
+  harmonica:
+    # Recomputes the stored Harmonica reference values and checks them, then runs the tests against them.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e ".[test,validation]"
+      - run: python tools/harmonica_reference.py --check
+      - run: pytest -q tests/test_validation.py

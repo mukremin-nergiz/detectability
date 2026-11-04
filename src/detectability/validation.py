@@ -12,7 +12,9 @@ single value, the relative difference).
 from __future__ import annotations
 
 import datetime as _dt
+import json
 from dataclasses import dataclass
+from importlib import resources
 
 import numpy as np
 
@@ -33,6 +35,27 @@ BGS = [
     ("London, United Kingdom", 51.5, -0.1, 0.0, "2012-03-15", 48635, -1.345, 66.469),
 ]
 IGRF_TOLERANCE_NT, IGRF_TOLERANCE_DEG = 1.0, 0.002
+
+# Independent code: the same targets computed with Harmonica (Fatiando a Terra Project), a separate open-source package.
+# tools/harmonica_reference.py computes them and stores data/harmonica_reference.json, so neither the library nor the
+# website has to install Harmonica; CI installs it, recomputes the file and checks it. Profiles run north (azimuth 0),
+# so the profile frame (along, across, down) is (north, east, down). A prism 200 km long stands in for a 2D dyke.
+HARMONICA_FILE = "harmonica_reference.json"
+_FIELD = (MID.total, MID.inclination, MID.declination)
+HARMONICA_CASES = {
+    "harmonica-prism-gravity": {"source": "prism", "along": (-3.0, 3.0), "across": (-4.0, 4.0), "depth": (2.0, 6.0),
+                                "drho": -2200.0, "x": (-40.0, 40.0, 81)},
+    "harmonica-prism-magnetic": {"source": "prism", "along": (-3.0, 2.0), "across": (-2.5, 3.5), "depth": (4.0, 7.0),
+                                 "chi": CHI, "field": _FIELD, "height": 0.5, "x": (-30.0, 30.0, 61)},
+    "harmonica-sphere-gravity": {"source": "sphere", "depth": 12.0, "radius": 3.0, "drho": -2600.0,
+                                 "x": (-60.0, 60.0, 121)},
+    "harmonica-sphere-magnetic": {"source": "sphere", "depth": 12.0, "radius": 3.0, "chi": CHI, "field": _FIELD,
+                                  "height": 0.5, "x": (-60.0, 60.0, 121)},
+    "harmonica-dyke-gravity": {"source": "prism", "along": (5.0, 9.0), "across": (-1e5, 1e5), "depth": (3.0, 15.0),
+                               "drho": 500.0, "x": (-40.0, 40.0, 81)},
+    "harmonica-dyke-magnetic": {"source": "prism", "along": (-2.0, 2.0), "across": (-1e5, 1e5), "depth": (3.0, 20.0),
+                                "chi": CHI, "field": _FIELD, "height": 0.5, "x": (-50.0, 50.0, 101)},
+}
 
 
 @dataclass
@@ -288,6 +311,65 @@ def cases() -> list[Case]:
         "Vertical derivative of the gravity step", "Slab from 5 to 40 m, at the pole", "nT", 1e-4, x,
         magnetics.contact(x, 5.0, 40.0, CHI, POLE),
         _poisson(_dgz_dz(lambda a, b: gravity.vertical_step(x, a, b, 1000.0), 5.0, 40.0), CHI, POLE, 1000.0)))
+
+    # --- independent code ---------------------------------------------------------------------------------------
+    out.extend(_harmonica_cases())
+    return out
+
+
+def harmonica_reference() -> dict | None:
+    """The stored Harmonica values and the versions they were computed with (None if the file is missing)."""
+    try:
+        return json.loads(resources.files("detectability").joinpath("data", HARMONICA_FILE).read_text("utf-8"))
+    except FileNotFoundError:
+        return None
+
+
+def _harmonica_cases() -> list[Case]:
+    ref = harmonica_reference()
+    if ref is None:
+        return []
+    h = f"Harmonica {ref['harmonica'].lstrip('v')}"
+    rows = {
+        "harmonica-prism-gravity": ("Prism, gravity", "Nagy (1966) closed form", f"{h} prism_gravity",
+                                    "6 × 8 m room from 2 to 6 m, −2,200 kg/m³", "µGal", 1e-8),
+        "harmonica-prism-magnetic": ("Prism, magnetic", "Gradient tensor and Poisson's relation", f"{h} prism_magnetic",
+                                     "5 × 6 m block from 4 to 7 m, 0.01 SI, main field of Sivas, sensor 0.5 m above "
+                                     "ground", "nT", 1e-8),
+        "harmonica-sphere-gravity": ("Sphere, gravity", "Point mass", f"{h} point_gravity",
+                                     "Radius 3 m, centre at 12 m, −2,600 kg/m³", "µGal", 1e-10),
+        "harmonica-sphere-magnetic": ("Sphere, magnetic", "Magnetic dipole", f"{h} dipole_magnetic",
+                                      "Radius 3 m, centre at 12 m, 0.01 SI, main field of Sivas, sensor 0.5 m above "
+                                      "ground", "nT", 1e-10),
+        "harmonica-dyke-gravity": ("Vertical dyke, gravity", "Difference of two vertical steps (2D)",
+                                   f"{h} prism_gravity, 200 km along strike", "4 m wide dyke from 3 to 15 m, "
+                                   "+500 kg/m³", "µGal", 1e-5),
+        "harmonica-dyke-magnetic": ("Vertical dyke, magnetic", "2D polygon (surface charge)",
+                                    f"{h} prism_magnetic, 200 km along strike", "4 m wide, from 3 to 20 m, 0.01 SI, "
+                                    "main field of Sivas, sensor 0.5 m above ground", "nT", 1e-5),
+    }
+    amb = Ambient(*_FIELD)
+    out = []
+    for key, c in HARMONICA_CASES.items():
+        x = np.linspace(c["x"][0], c["x"][1], int(c["x"][2]))
+        if key == "harmonica-prism-gravity":
+            model = gravity.prism(x, 0.0, *c["along"], *c["across"], *c["depth"], c["drho"]) * SI_TO_UGAL
+        elif key == "harmonica-prism-magnetic":
+            model = magnetics.prism(x, *c["along"], *c["across"], *c["depth"], c["chi"], amb, height=c["height"])
+        elif key == "harmonica-sphere-gravity":
+            model = gravity.sphere(x, c["depth"], c["radius"], c["drho"]) * SI_TO_UGAL
+        elif key == "harmonica-sphere-magnetic":
+            model = magnetics.sphere(x, c["depth"], c["radius"], c["chi"], amb, height=c["height"])
+        elif key == "harmonica-dyke-gravity":
+            width = c["along"][1] - c["along"][0]
+            model = gravity.dyke(x, *c["depth"], width, c["drho"], centre=sum(c["along"]) / 2) * SI_TO_UGAL
+        else:
+            width = c["along"][1] - c["along"][0]
+            model = magnetics.dyke(x, *c["depth"], width, c["chi"], amb, centre=sum(c["along"]) / 2,
+                                   height=c["height"])
+        geometry, how, reference, setting, units, tol = rows[key]
+        out.append(_profile_case(key, "Independent code", geometry, how, reference, setting, units, tol, x, model,
+                                 np.asarray(ref["cases"][key], float)))
     return out
 
 

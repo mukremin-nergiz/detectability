@@ -8,13 +8,13 @@ abstract: >-
   dipping dyke, vertical contact) along a profile, takes the main geomagnetic field from IGRF-14 for the survey
   location and date, compares the anomaly with instrument and field noise, and returns a verdict per method with the
   recommended station spacing, profile length, assumptions and a script that reproduces the result. Every model is
-  validated against an independent result.
+  validated against an independent result, including an independent code (Harmonica).
 authors:
   - given-names: "Mükremin"
     family-names: "Nergiz"
     affiliation: "Independent Researcher, Sivas, Türkiye"
     orcid: "https://orcid.org/0009-0001-6789-2774"
-version: "0.1.1"
+version: "0.2.0"
 doi: 10.5281/zenodo.23931815
 identifiers:
   - type: doi

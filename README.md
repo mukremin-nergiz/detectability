@@ -35,7 +35,7 @@ print(report.summary())
 ```
 
 ```text
-Detectability 0.1.1: sphere in limestone
+Detectability 0.2.0: sphere in limestone
 - gravity: peak 114 µGal, noise 11.2 µGal, S/N 10.2: clearly detectable
   stations every 5 m or less, profile at least 153 m long
 - magnetic: peak 0.462 nT, noise 2 nT, S/N 0.231: not detectable
@@ -66,6 +66,16 @@ Every model is checked against a result computed in a different way. Each row be
 error exceeds the tolerance. The error is the largest difference along the profile as a percentage of the largest
 reference value. Figures for each row: <https://detectability.mukreminnergiz.com/validation>.
 
+The "Independent code" rows compare with [Harmonica](https://www.fatiando.org/harmonica) 0.7.0 (Fatiando a Terra
+Project, [doi:10.5281/zenodo.13308312](https://doi.org/10.5281/zenodo.13308312)), a separate open-source package. Its
+values are stored in `src/detectability/data/harmonica_reference.json`, so the library does not depend on it; to
+recompute and check them:
+
+```bash
+pip install -e ".[validation]"
+python tools/harmonica_reference.py --check
+```
+
 | Check | Geometry and method | Reference | Max. relative error | Tolerance |
 |---|---|---|---:|---:|
 | Analytical limit | Prism, gravity, far from the sensor | Point mass of the same mass | 1.9e-05 % | 0.01 % |
@@ -84,6 +94,12 @@ reference value. Figures for each row: <https://detectability.mukreminnergiz.com
 | Poisson's relation | Dipping dyke (60°), gravity ↔ magnetic | Vertical derivative of the gravity dyke | 2.6e-08 % | 1.0e-04 % |
 | Poisson's relation | Vertical cylinder, gravity ↔ magnetic | Vertical derivative of the gravity cylinder | 3.6e-08 % | 1.0e-04 % |
 | Poisson's relation | Vertical contact, gravity ↔ magnetic | Vertical derivative of the gravity step | 3.9e-06 % | 1.0e-04 % |
+| Independent code | Prism, gravity | Harmonica 0.7.0 prism_gravity | 3.0e-12 % | 1.0e-08 % |
+| Independent code | Prism, magnetic | Harmonica 0.7.0 prism_magnetic | 4.8e-13 % | 1.0e-08 % |
+| Independent code | Sphere, gravity | Harmonica 0.7.0 point_gravity | 3.9e-14 % | 1.0e-10 % |
+| Independent code | Sphere, magnetic | Harmonica 0.7.0 dipole_magnetic | 8.8e-14 % | 1.0e-10 % |
+| Independent code | Vertical dyke, gravity | Harmonica 0.7.0 prism_gravity, 200 km along strike | 3.6e-07 % | 1.0e-05 % |
+| Independent code | Vertical dyke, magnetic | Harmonica 0.7.0 prism_magnetic, 200 km along strike | 5.1e-07 % | 1.0e-05 % |
 | Reference service | IGRF-14 main field, 5 sites | British Geological Survey IGRF-14 | 0.38 nT, 0.0005° | 1 nT, 0.002° |
 
 Regenerate this table with `python -m detectability.validation`. Run all tests (including these) with:
@@ -104,7 +120,7 @@ source); field noise, which usually dominates, is a stated assumption that you c
 
 See [CITATION.cff](CITATION.cff), or:
 
-> Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.1.1) [Computer software].
+> Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.2.0) [Computer software].
 > Zenodo. https://doi.org/10.5281/zenodo.23931815
 
 The DOI above always resolves to the latest version; each release also has its own DOI on Zenodo.

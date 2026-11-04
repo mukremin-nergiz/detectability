@@ -19,3 +19,10 @@ def test_igrf_within_tolerance():
 def test_table_lists_every_case():
     table = validation.markdown_table()
     assert table.count("\n") == len(CASES) + 2  # header, rule, cases, IGRF row
+
+
+def test_harmonica_reference_is_packaged_and_complete():
+    ref = validation.harmonica_reference()
+    assert ref is not None and ref["doi"].startswith("10.5281/zenodo.")
+    assert set(ref["cases"]) == set(validation.HARMONICA_CASES)
+    assert sum(c.check == "Independent code" for c in CASES) == len(validation.HARMONICA_CASES)
