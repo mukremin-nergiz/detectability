@@ -4,6 +4,18 @@ All notable changes to Detectability. The format follows [Keep a Changelog](http
 and the project uses [semantic versioning](https://semver.org/). Each release is archived on Zenodo with its own DOI;
 the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.23931815) always resolves to the latest.
 
+## [Unreleased]
+
+### Added
+- Magnetic vertical gradient: a new method, `gradient`, models the reading of a two-sensor vertical gradiometer, the
+  total-field anomaly at the lower sensor minus that at the upper sensor, in nT over the baseline. Instrument presets
+  from the manufacturers' data sheets: Bartington Grad601 (1 m baseline, 0.1 nT), Sensys FGM650 (0.65 m, 0.04 nT),
+  Foerster FEREX 4.034 (0.55 m, 0.04 nT) and GEM GSM-19G (0.56 m, 0.031 nT). Survey fields `gradiometer`,
+  `gradient_field_noise` (default 0.5 nT, an assumption), `gradient_instrument_noise`, `gradiometer_height` (default
+  0.2 m) and `gradiometer_baseline`.
+- Validation row: the gradiometer reading of a sphere at the pole against the closed-form dipole field at both sensors.
+- `DEFAULT_METHODS`: the default methods stay `gravity` and `magnetic`; `gradient` is added on request.
+
 ## [0.2.1] - 2026-11-04
 
 DOI [10.5281/zenodo.23948416](https://doi.org/10.5281/zenodo.23948416)
