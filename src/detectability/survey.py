@@ -148,7 +148,7 @@ class Report:
 
 SCRIPT = '''"""Reproduces a Detectability result (detectability {version}).
 
-Install: pip install "git+https://github.com/mukremin-nergiz/detectability"
+Install: pip install "detectability=={version}"
 """
 import detectability
 from detectability import evaluate

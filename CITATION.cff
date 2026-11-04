@@ -14,7 +14,7 @@ authors:
     family-names: "Nergiz"
     affiliation: "Independent Researcher, Sivas, Türkiye"
     orcid: "https://orcid.org/0009-0001-6789-2774"
-version: "0.2.0"
+version: "0.2.1"
 doi: 10.5281/zenodo.23931815
 identifiers:
   - type: doi

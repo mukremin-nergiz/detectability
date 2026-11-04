@@ -15,10 +15,10 @@ assumption, and a Python script that reproduces the result.
 ## Install
 
 ```bash
-pip install "git+https://github.com/mukremin-nergiz/detectability"
+pip install detectability
 ```
 
-Python 3.10 or newer; the only dependency is NumPy.
+Python 3.10 or newer; the only dependency is NumPy. The development version: `pip install "git+https://github.com/mukremin-nergiz/detectability"`.
 
 ## Example
 
@@ -35,7 +35,7 @@ print(report.summary())
 ```
 
 ```text
-Detectability 0.2.0: sphere in limestone
+Detectability 0.2.1: sphere in limestone
 - gravity: peak 114 µGal, noise 11.2 µGal, S/N 10.2: clearly detectable
   stations every 5 m or less, profile at least 153 m long
 - magnetic: peak 0.462 nT, noise 2 nT, S/N 0.231: not detectable
@@ -120,7 +120,7 @@ source); field noise, which usually dominates, is a stated assumption that you c
 
 See [CITATION.cff](https://github.com/mukremin-nergiz/detectability/blob/main/CITATION.cff), or:
 
-> Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.2.0) [Computer software].
+> Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.2.1) [Computer software].
 > Zenodo. https://doi.org/10.5281/zenodo.23931815
 
 The DOI above always resolves to the latest version; each release also has its own DOI on Zenodo.
