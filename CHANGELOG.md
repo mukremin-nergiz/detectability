@@ -6,6 +6,8 @@ the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.2393181
 
 ## [0.3.0] - 2026-11-04
 
+DOI [10.5281/zenodo.23949047](https://doi.org/10.5281/zenodo.23949047)
+
 ### Added
 - Magnetic vertical gradient: a new method, `gradient`, models the reading of a two-sensor vertical gradiometer, the
   total-field anomaly at the lower sensor minus that at the upper sensor, in nT over the baseline. Instrument presets
