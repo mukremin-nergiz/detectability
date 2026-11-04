@@ -111,6 +111,48 @@ def _dipoles_along_strike(x, z, radius, chi, ambient, azimuth, n=20001):
     return np.array(out)
 
 
+def _disc_line_masses(x, radius, z1, z2, drho, n=200):
+    """Vertical cylinder by Gauss-Legendre over its cross-section in polar coordinates about the axis, each node a
+    vertical line mass in closed form; profile along y = 0. Independent of the rim integral used by the model."""
+    r, wr = np.polynomial.legendre.leggauss(n)
+    r, wr = radius / 2 * (r + 1), radius / 2 * wr
+    t, wt = np.polynomial.legendre.leggauss(2 * n)
+    t, wt = np.pi * (t + 1), np.pi * wt
+    rr, tt = np.meshgrid(r, t, indexing="ij")
+    w = np.outer(wr, wt) * rr
+    out = []
+    for xi in x:
+        s2 = (xi - rr * np.cos(tt)) ** 2 + (rr * np.sin(tt)) ** 2
+        out.append(np.sum(w * (1 / np.sqrt(s2 + z1**2) - 1 / np.sqrt(s2 + z2**2))))
+    return G * drho * np.array(out)
+
+
+def _cylinder_dipoles(x, radius, z1, z2, chi, ambient, azimuth, height=0.0, n=32):
+    """Vertical cylinder filled with Gauss-Legendre point dipoles (polar about the axis, and depth)."""
+    r, wr = np.polynomial.legendre.leggauss(n)
+    r, wr = radius / 2 * (r + 1), radius / 2 * wr
+    t, wt = np.polynomial.legendre.leggauss(2 * n)
+    t, wt = np.pi * (t + 1), np.pi * wt
+    z, wz = np.polynomial.legendre.leggauss(n)
+    z, wz = (z2 - z1) / 2 * z + (z1 + z2) / 2, (z2 - z1) / 2 * wz
+    rr, tt, zz = np.meshgrid(r, t, z, indexing="ij")
+    w = (np.einsum("i,j,k->ijk", wr, wt, wz) * rr).ravel()
+    a = np.radians(azimuth)
+    along, across = np.array([np.cos(a), np.sin(a), 0.0]), np.array([-np.sin(a), np.cos(a), 0.0])
+    src = ((rr * np.cos(tt)).ravel()[:, None] * along + (rr * np.sin(tt)).ravel()[:, None] * across
+           + zz.ravel()[:, None] * np.array([0.0, 0.0, 1.0]))
+    m = magnetics.magnetisation(chi, ambient)
+    f = magnetics.unit_vector(ambient.inclination, ambient.declination)
+    out = []
+    for xi in x:
+        rel = xi * along - np.array([0.0, 0.0, height]) - src
+        dist = np.linalg.norm(rel, axis=1, keepdims=True)
+        rhat = rel / dist
+        b = MU0 / (4 * np.pi) * (3 * (rhat @ m)[:, None] * rhat - m) / dist**3
+        out.append(np.sum((b @ f) * w) * 1e9)
+    return np.array(out)
+
+
 def _poisson(dgz_dz, chi, ambient, drho):
     """Poisson's relation for vertical field and magnetisation: dT = mu0 M / (4 pi G drho) * dgz/dz, in nT."""
     return MU0 * (chi * ambient.total * 1e-9 / MU0) / (4 * np.pi * G * drho) * dgz_dz * 1e9
@@ -151,9 +193,9 @@ def cases() -> list[Case]:
 
     top, bottom, R = 5.0, 30.0, 3.0
     exact = 2 * np.pi * G * -2600.0 * ((bottom - top) - np.hypot(bottom, R) + np.hypot(top, R))
-    out.append(Case("vertical-cylinder", "Approximation", "Vertical cylinder, gravity, on its axis",
-                    "Square prism of equal cross-section", "Exact on-axis cylinder formula",
-                    "Shaft of 6 m diameter from 5 to 30 m, −2,600 kg/m³", "µGal", 3.0,
+    out.append(Case("vertical-cylinder-axis", "Analytical limit", "Vertical cylinder, gravity, on its axis",
+                    "Rim integral (closed form in depth and distance)", "Exact on-axis cylinder formula",
+                    "Shaft of 6 m diameter from 5 to 30 m, −2,600 kg/m³", "µGal", 1e-10,
                     _value_error(gravity.vertical_cylinder(0.0, top, bottom, R, -2600.0), exact)))
 
     # --- independent closed forms ----------------------------------------------------------------------------
@@ -200,6 +242,21 @@ def cases() -> list[Case]:
         magnetics.prism(x, *box[0], *box[1], *box[2], CHI, MID, azimuth=30.0, height=0.5),
         _point_dipoles(x, box, CHI, MID, 30.0, height=0.5)))
 
+    x = np.linspace(-30, 30, 61)
+    out.append(_profile_case(
+        "vertical-cylinder-quadrature", "Numerical integration", "Vertical cylinder, gravity",
+        "Rim integral (closed form in depth and distance)", "Gauss–Legendre over the cross-section, line masses in depth",
+        "Shaft of 6 m diameter from 5 to 30 m, −2,600 kg/m³", "µGal", 1e-8, x,
+        gravity.vertical_cylinder(x, 5.0, 30.0, 3.0, -2600.0) * SI_TO_UGAL,
+        _disc_line_masses(x, 3.0, 5.0, 30.0, -2600.0) * SI_TO_UGAL))
+
+    out.append(_profile_case(
+        "vertical-cylinder-magnetic-quadrature", "Numerical integration", "Vertical cylinder, magnetic",
+        "Gradient tensor (rim integral) and Poisson's relation", "Gauss–Legendre point dipoles over the volume",
+        "Shaft of 6 m diameter from 5 to 30 m, 0.01 SI, sensor 0.5 m above ground, azimuth 30°", "nT", 1e-6, x,
+        magnetics.vertical_cylinder(x, 5.0, 30.0, 3.0, CHI, MID, azimuth=30.0, height=0.5),
+        _cylinder_dipoles(x, 3.0, 5.5, 30.5, CHI, MID, 30.0)))
+
     # --- Poisson's relation: the magnetic codes against the independent gravity codes -------------------------
     x = np.linspace(-60, 60, 121)
     out.append(_profile_case(
@@ -216,6 +273,14 @@ def cases() -> list[Case]:
             "Vertical derivative of the gravity dyke", "4 m wide, from 3 to 20 m, at the pole", "nT", 1e-4, x,
             magnetics.dyke(x, 3.0, 20.0, 4.0, CHI, POLE, dip=dip),
             _poisson(_dgz_dz(lambda a, b: gravity.dyke(x, a, b, 4.0, 1000.0, dip=dip), 3.0, 20.0), CHI, POLE, 1000.0)))
+
+    x = np.linspace(-40, 40, 81)
+    out.append(_profile_case(
+        "vertical-cylinder-poisson", "Poisson's relation", "Vertical cylinder, gravity ↔ magnetic",
+        "Gradient tensor (rim integral)", "Vertical derivative of the gravity cylinder",
+        "Shaft of 6 m diameter from 2 to 30 m, at the pole", "nT", 1e-4, x,
+        magnetics.vertical_cylinder(x, 2.0, 30.0, 3.0, CHI, POLE),
+        _poisson(_dgz_dz(lambda a, b: gravity.vertical_cylinder(x, a, b, 3.0, 1000.0), 2.0, 30.0), CHI, POLE, 1000.0)))
 
     x = np.linspace(-80, 80, 161)
     out.append(_profile_case(

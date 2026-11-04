@@ -174,9 +174,19 @@ def prism(x, along1: float, along2: float, across1: float, across2: float, top: 
 
 def vertical_cylinder(x, top: float, bottom: float, radius: float, susceptibility: float, ambient: Ambient,
                       azimuth: float = 0.0, height: float = 0.0, remanence=None):
-    """Vertical cylinder (shaft, well, sinkhole pipe) as a square prism of equal cross-section (as in gravity)."""
-    half = radius * np.sqrt(np.pi) / 2.0
-    return prism(x, -half, half, -half, half, top, bottom, susceptibility, ambient, azimuth, height, remanence)
+    """Vertical cylinder (shaft, well, sinkhole pipe) from ``top`` to ``bottom`` depth, axis on the profile at x = 0.
+
+    Exact: from the cylinder's gravity gradient tensor (``gravity.vertical_cylinder_tensor``) by Poisson's relation,
+    B = mu0 / (4 pi) * T M, as for the prism.
+    """
+    from .gravity import vertical_cylinder_tensor
+
+    if top + height <= 0:
+        raise ValueError("the body must lie below the sensor (raise the sensor or bury the body)")
+    m = _to_profile_frame(magnetisation(susceptibility, ambient, remanence), azimuth)
+    f = _to_profile_frame(unit_vector(ambient.inclination, ambient.declination), azimuth)
+    t = vertical_cylinder_tensor(np.asarray(x, float), 0.0, radius, top + height, bottom + height)
+    return MU0 / (4 * np.pi) * np.einsum("i,...ij,j->...", f, t, m) * T_TO_NT
 
 
 def contact(x, top: float, bottom: float, susceptibility: float, ambient: Ambient, azimuth: float = 0.0,

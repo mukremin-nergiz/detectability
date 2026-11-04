@@ -48,10 +48,55 @@ def test_prism_sign_and_symmetry():
     assert np.argmax(g) == 50
 
 
-def test_vertical_cylinder_close_to_exact_on_axis():
+def test_vertical_cylinder_exact_on_axis():
     top, bottom, R = 5.0, 30.0, 3.0
     exact = 2 * np.pi * G * DRHO * ((bottom - top) - np.hypot(bottom, R) + np.hypot(top, R))
-    assert gravity.vertical_cylinder(0.0, top, bottom, R, DRHO) == pytest.approx(exact, rel=0.03)
+    assert gravity.vertical_cylinder(0.0, top, bottom, R, DRHO) == pytest.approx(exact, rel=1e-12)
+
+
+def test_vertical_cylinder_matches_cross_section_quadrature_also_above_the_rim():
+    from detectability.validation import _disc_line_masses
+    R = 3.0
+    for top in (5.0, 0.3):                                   # deep, and shallow (sharp near the rim)
+        x = np.array([0.0, 1.0, 2.5, 2.99, 3.0, 3.01, 3.5, 6.0, 20.0])
+        ref = _disc_line_masses(x, R, top, 30.0, DRHO, n=800)
+        assert np.allclose(gravity.vertical_cylinder(x, top, 30.0, R, DRHO), ref, rtol=1e-10, atol=0)
+
+
+def test_vertical_cylinder_limits():
+    R, top, bottom = 3.0, 5.0, 30.0
+    x = np.array([2000.0, 4000.0])                           # far: a point mass
+    mass = np.pi * R**2 * (bottom - top) * DRHO
+    zc = (top + bottom) / 2
+    point = G * mass * zc / (x**2 + zc**2) ** 1.5
+    assert np.allclose(gravity.vertical_cylinder(x, top, bottom, R, DRHO), point, rtol=1e-4)
+    slab = gravity.vertical_cylinder(0.0, 10.0, 12.0, 1e7, 1000.0)   # very wide: the Bouguer slab, to (z1+z2)/2R
+    assert slab == pytest.approx(2 * np.pi * G * 1000.0 * 2.0, rel=1e-5)
+    off = gravity.vertical_cylinder(np.array([0.0, 7.0]), top, bottom, R, DRHO, y=np.array([7.0, 0.0]))
+    assert off[0] == pytest.approx(off[1], rel=1e-13)       # axisymmetric
+
+
+def test_vertical_cylinder_open_at_the_surface():
+    from detectability.validation import _disc_line_masses
+    x = np.array([0.0, 1.5, 2.9, 3.1, 5.0, 12.0])            # off the rim itself
+    g = gravity.vertical_cylinder(x, 0.0, 20.0, 3.0, DRHO)
+    assert np.allclose(g, _disc_line_masses(x, 3.0, 0.0, 20.0, DRHO, n=800), rtol=1e-6)
+    rim = gravity.vertical_cylinder(np.array([2.999, 3.0, 3.001]), 0.0, 20.0, 3.0, DRHO)   # steep but continuous
+    assert np.all(np.isfinite(rim)) and rim[0] < rim[1] < rim[2]
+    assert abs(rim[1] - (rim[0] + rim[2]) / 2) < 0.01 * np.ptp(rim)
+
+
+def test_vertical_cylinder_tensor():
+    x, y = np.linspace(-20, 20, 41), 0.7
+    t = gravity.vertical_cylinder_tensor(x, y, 3.0, 5.0, 30.0)
+    assert np.allclose(t, np.swapaxes(t, -1, -2))
+    assert np.max(np.abs(np.trace(t, axis1=-2, axis2=-1))) < 1e-12 * np.max(np.abs(t))
+    h = 1e-3
+    gz = lambda xx, yy, a, b: gravity.vertical_cylinder(xx, a, b, 3.0, 1.0, yy) / G
+    scale = np.max(np.abs(t[..., 2, 2]))
+    assert np.max(np.abs(t[..., 2, 2] - (gz(x, y, 5 - h, 30 - h) - gz(x, y, 5 + h, 30 + h)) / (2 * h))) < 1e-6 * scale
+    assert np.max(np.abs(t[..., 2, 0] - (gz(x + h, y, 5, 30) - gz(x - h, y, 5, 30)) / (2 * h))) < 1e-6 * scale
+    assert np.max(np.abs(t[..., 2, 1] - (gz(x, y + h, 5, 30) - gz(x, y - h, 5, 30)) / (2 * h))) < 1e-6 * scale
 
 
 def test_vertical_step_limits():

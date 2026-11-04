@@ -158,3 +158,19 @@ def test_dipping_dyke_poisson_relation():
     dg = (gravity.dyke(x, top - d, bottom - d, w, drho, dip=dip) - gravity.dyke(x, top + d, bottom + d, w, drho, dip=dip)) / (2 * d)
     t = magnetics.dyke(x, top, bottom, w, CHI, POLE, dip=dip)
     assert np.allclose(t, _poisson(dg, CHI, POLE, drho), rtol=0, atol=1e-6 * np.abs(t).max())
+
+
+def test_vertical_cylinder_matches_dipole_quadrature():
+    from detectability.validation import _cylinder_dipoles
+    x = np.array([-25.0, -6.0, -3.0, 0.0, 2.0, 3.2, 8.0, 30.0])
+    ours = magnetics.vertical_cylinder(x, 4.0, 25.0, 2.5, 0.02, MID, azimuth=120.0, height=0.3)
+    ref = _cylinder_dipoles(x, 2.5, 4.3, 25.3, 0.02, MID, 120.0, n=40)
+    assert np.allclose(ours, ref, rtol=1e-9, atol=1e-12 * np.max(np.abs(ref)))
+
+
+def test_vertical_cylinder_far_field_is_a_dipole():
+    R, top, bottom = 2.0, 10.0, 14.0                       # a squat cylinder seen from far away
+    x = np.array([400.0, 800.0])
+    volume = np.pi * R**2 * (bottom - top)
+    dipole = magnetics.sphere(x, (top + bottom) / 2, (3 * volume / (4 * np.pi)) ** (1 / 3), 0.01, MID)
+    assert np.allclose(magnetics.vertical_cylinder(x, top, bottom, R, 0.01, MID), dipole, rtol=1e-3)

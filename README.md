@@ -54,7 +54,7 @@ in, and measured contrasts can be given instead.
 | Module | Contents |
 |---|---|
 | `survey` | `evaluate()`: target and survey in, report and reproduction script out |
-| `gravity` | sphere, horizontal cylinder, right rectangular prism (Nagy; Plouff) and its gradient tensor, vertical cylinder, vertical step, dyke, 2D polygon (Talwani; Won & Bevis) |
+| `gravity` | sphere, horizontal cylinder, right rectangular prism (Nagy; Plouff) and its gradient tensor, vertical cylinder (exact, by a rim integral) and its gradient tensor, vertical step, dyke, 2D polygon (Talwani; Won & Bevis) |
 | `magnetics` | total-field anomaly: sphere, horizontal cylinder, prism, vertical cylinder, 2D polygon, dyke (any dip), vertical contact; induced and remanent magnetisation |
 | `igrf` | IGRF-14 main field from location and date, from the official IAGA coefficients |
 | `rocks` | typical densities and magnetic susceptibilities with their ranges (Telford et al. 1990) |
@@ -71,15 +71,18 @@ reference value. Figures for each row: <https://detectability.mukreminnergiz.com
 | Analytical limit | Prism, gravity, far from the sensor | Point mass of the same mass | 1.9e-05 % | 0.01 % |
 | Analytical limit | Prism, gravity, wide and thin | Infinite Bouguer slab, 2πGΔρt | 0.0099 % | 0.1 % |
 | Analytical limit | Vertical step, gravity, far over the slab | Infinite Bouguer slab, 2πGΔρt | 4.8e-04 % | 0.01 % |
-| Approximation | Vertical cylinder, gravity, on its axis | Exact on-axis cylinder formula | 0.342 % | 3 % |
+| Analytical limit | Vertical cylinder, gravity, on its axis | Exact on-axis cylinder formula | 1.7e-13 % | 1.0e-10 % |
 | Independent formula | Horizontal cylinder, gravity | 2D polygon, 720 sides (Talwani; Won & Bevis) | 6.3e-12 % | 0.01 % |
 | Independent formula | Vertical dyke, gravity | 2D polygon (Won & Bevis) | 1.9e-13 % | 1.0e-06 % |
 | Numerical integration | Prism, gravity | 16³ Gauss–Legendre point masses | 2.9e-06 % | 0.001 % |
 | Numerical integration | Horizontal cylinder, magnetic | 3D dipoles integrated along strike | 2.2e-07 % | 0.01 % |
 | Numerical integration | Prism, magnetic | 16³ Gauss–Legendre point dipoles | 1.3e-12 % | 0.001 % |
+| Numerical integration | Vertical cylinder, gravity | Gauss–Legendre over the cross-section, line masses in depth | 5.5e-13 % | 1.0e-08 % |
+| Numerical integration | Vertical cylinder, magnetic | Gauss–Legendre point dipoles over the volume | 5.8e-13 % | 1.0e-06 % |
 | Poisson's relation | Sphere, gravity ↔ magnetic | Vertical derivative of the gravity sphere | 1.4e-08 % | 0.001 % |
 | Poisson's relation | Vertical dyke, gravity ↔ magnetic | Vertical derivative of the gravity dyke | 2.2e-08 % | 1.0e-04 % |
 | Poisson's relation | Dipping dyke (60°), gravity ↔ magnetic | Vertical derivative of the gravity dyke | 2.6e-08 % | 1.0e-04 % |
+| Poisson's relation | Vertical cylinder, gravity ↔ magnetic | Vertical derivative of the gravity cylinder | 3.6e-08 % | 1.0e-04 % |
 | Poisson's relation | Vertical contact, gravity ↔ magnetic | Vertical derivative of the gravity step | 3.9e-06 % | 1.0e-04 % |
 | Reference service | IGRF-14 main field, 5 sites | British Geological Survey IGRF-14 | 0.38 nT, 0.0005° | 1 nT, 0.002° |
 

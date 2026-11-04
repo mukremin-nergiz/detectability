@@ -18,6 +18,8 @@ References
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 
 from .constants import G
@@ -102,14 +104,104 @@ def prism_tensor(x, y, x1: float, x2: float, y1: float, y2: float, z1: float, z2
     return t
 
 
-def vertical_cylinder(x, top: float, bottom: float, radius: float, drho: float, y=0.0):
-    """Vertical cylinder (shaft, sinkhole pipe, well) from ``top`` to ``bottom`` depth.
+# --- vertical cylinder ----------------------------------------------------------------------------------------
+# The volume integral is done in closed form along the depth and along every ray from the station; what is left is one
+# integral round the rim (Gauss's theorem in the horizontal plane). Each term is written as its difference from the
+# value at zero distance, divided by the matching power of the distance, so the integrand is an analytic periodic
+# function of the rim angle, also for stations right above the rim. The trapezoid rule then converges geometrically:
+# the nearest complex singularity is at Im(theta) = arccosh(1 + ((R - d)^2 + z1^2) / (2 R d)), which sets the number of
+# nodes. Small arguments use Taylor series to avoid cancellation.
 
-    Modelled as a square prism of the same cross-sectional area (side = radius * sqrt(pi)); the error against the true
-    cylinder is below 1 % once the observation distance exceeds about two radii (see tests).
+_C = np.array([math.comb(2 * n, n) / 4.0**n for n in range(16)])          # coefficients of asinh and 1/sqrt(1 + x^2)
+_S_SERIES = np.array([(-1) ** n * _C[n] / (2 * n + 1) for n in range(1, 13)])                 # (z asinh(x) - z x) / (z x)^3 * z^2
+_C_SERIES = np.array([(-1) ** (n + 1) * _C[n] * 2 * n / (2 * n + 1) for n in range(1, 13)])  # (asinh x - x / sqrt(1+x^2)) / x^3
+_E_SERIES = np.array([2 * (1 - 2.0**-n) / n for n in range(2, 18)])       # (2 ln((1+t)/(2t)) - 1 + t) / eps^2, t = 1 - eps
+_L_SERIES = np.array([(1 - 2.0**-n) / n for n in range(1, 17)])           # ln((1+t)/(2t)) / eps
+
+
+def _rim_terms(rho2, z: float) -> dict:
+    """Per-depth terms of the rim integrand at squared distance ``rho2`` from the station, for a face at depth ``z``."""
+    u = np.sqrt(rho2 + z * z)
+    k = 1.0 / (u * (u + z))               # (1 - z/u) / rho^2
+    eps = rho2 * k                        # 1 - z/u, computed without cancellation
+    x2 = rho2 / (z * z)
+    small, small_eps = x2 < 0.0625, eps < 0.1
+    rho = np.sqrt(rho2)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        c_direct = (np.arcsinh(rho / z) - rho / u) / (rho2 * rho)
+        ln_ratio = np.log1p(-eps / 2) - np.log1p(-eps)                       # ln((z + u) / (2 z))
+        e_direct = (2 * ln_ratio - eps) / eps**2
+        l_direct = ln_ratio / eps
+    return {
+        "gz": 1.0 / (u + z),                                                   # (u - z) / rho^2
+        "tzz": k,
+        "tzh": np.where(small, np.polynomial.polynomial.polyval(x2, _C_SERIES) / z**3, c_direct),
+        "ww": np.where(small_eps, np.polynomial.polynomial.polyval(eps, _E_SERIES), e_direct) * k * k,
+        "ii": np.where(small_eps, np.polynomial.polynomial.polyval(eps, _L_SERIES), l_direct) * k,
+    }
+
+
+def _rim_nodes(d, radius: float, z1: float) -> np.ndarray:
+    """Trapezoid nodes per station for about 15 correct digits (a power of two, 16 to 65,536)."""
+    with np.errstate(divide="ignore"):
+        excess = ((radius - d) ** 2 + z1 * z1) / (2.0 * radius * d)        # inf on the axis
+        a = 2.0 * np.arcsinh(np.sqrt(excess / 2.0))                          # arccosh(1 + excess), also when tiny
+        n = np.clip(36.0 / a, 16, 65536)
+    return (2 ** np.ceil(np.log2(n))).astype(int)
+
+
+def _cylinder_rim(x, y, radius: float, z1: float, z2: float, tensor: bool):
+    """gz (and the gradient tensor) of a vertical cylinder per unit G * drho, by the rim integral."""
+    if not (radius > 0 and 0 <= z1 < z2):
+        raise ValueError("need radius > 0 and 0 <= top < bottom")
+    z1 = max(z1, 1e-9 * max(radius, z2))   # a top exactly at the surface: the limit, within 1e-9 of the body size
+    x, y = np.broadcast_arrays(np.asarray(x, float), np.asarray(y, float))
+    ox, oy = x.ravel(), y.ravel()
+    gz = np.zeros(ox.shape)
+    t = np.zeros(ox.shape + (3, 3))
+    nodes = _rim_nodes(np.hypot(ox, oy), radius, z1)
+    for n in np.unique(nodes):
+        theta = (np.arange(n) + 0.5) * (2.0 * np.pi / n)       # half-step grid: never exactly at a station on the x axis
+        cos, sin = np.cos(theta), np.sin(theta)
+        members = np.flatnonzero(nodes == n)
+        for chunk in np.array_split(members, max(1, len(members) * n // 400_000)):
+            px, py = ox[chunk, None], oy[chunk, None]
+            wx, wy = radius * cos - px, radius * sin - py         # station to rim
+            rho2 = wx * wx + wy * wy
+            dphi = (radius * radius - radius * (px * cos + py * sin)) * (2.0 * np.pi / n)   # rho^2 dphi / dtheta * h
+            top, base = _rim_terms(rho2, z1), _rim_terms(rho2, z2)
+            gz[chunk] = np.sum((top["gz"] - base["gz"]) * dphi, axis=1)
+            if tensor:
+                zh = (top["tzh"] - base["tzh"]) * dphi
+                ww = (top["ww"] - base["ww"]) * dphi
+                ii = (top["ii"] - base["ii"]) * dphi
+                tc = t[chunk]
+                tc[:, 2, 2] = np.sum((top["tzz"] - base["tzz"]) * dphi, axis=1)
+                tc[:, 0, 2] = tc[:, 2, 0] = np.sum(zh * wx, axis=1)
+                tc[:, 1, 2] = tc[:, 2, 1] = np.sum(zh * wy, axis=1)
+                tc[:, 0, 0] = np.sum(ww * wx * wx - ii, axis=1)
+                tc[:, 1, 1] = np.sum(ww * wy * wy - ii, axis=1)
+                tc[:, 0, 1] = tc[:, 1, 0] = np.sum(ww * wx * wy, axis=1)
+                t[chunk] = tc
+    return gz.reshape(x.shape), t.reshape(x.shape + (3, 3))
+
+
+def vertical_cylinder(x, top: float, bottom: float, radius: float, drho: float, y=0.0):
+    """Vertical cylinder (shaft, sinkhole pipe, well) from ``top`` to ``bottom`` depth, axis at x = y = 0.
+
+    Exact: the volume integral is reduced to one integral round the rim (closed form in depth and distance) and summed
+    with the trapezoid rule to about 15 digits. A top at the surface (0) is allowed; right above the rim the sum then
+    converges slowly and the value there is good to about 1e-6.
     """
-    half = radius * np.sqrt(np.pi) / 2.0
-    return prism(x, y, -half, half, -half, half, top, bottom, drho)
+    gz, _ = _cylinder_rim(x, y, radius, top, bottom, tensor=False)
+    return G * drho * gz
+
+
+def vertical_cylinder_tensor(x, y, radius: float, z1: float, z2: float):
+    """Gravity gradient tensor of a vertical cylinder per unit G * drho, as an array (..., 3, 3) in (x, y, z down), with
+    the same convention as ``prism_tensor``; used by ``magnetics.vertical_cylinder`` through Poisson's relation."""
+    _, t = _cylinder_rim(x, y, radius, z1, z2, tensor=True)
+    return t
 
 
 def vertical_step(x, top: float, bottom: float, drho: float, edge: float = 0.0):
