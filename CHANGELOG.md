@@ -4,7 +4,7 @@ All notable changes to Detectability. The format follows [Keep a Changelog](http
 and the project uses [semantic versioning](https://semver.org/). Each release is archived on Zenodo with its own DOI;
 the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.23931815) always resolves to the latest.
 
-## [Unreleased]
+## [0.3.0] - 2026-11-04
 
 ### Added
 - Magnetic vertical gradient: a new method, `gradient`, models the reading of a two-sensor vertical gradiometer, the
@@ -80,6 +80,7 @@ DOI [10.5281/zenodo.23931816](https://doi.org/10.5281/zenodo.23931816)
   sphere, horizontal cylinder, prism, vertical cylinder, 2D polygon, dyke of any dip, vertical contact.
 - Validation module and tests against independent results; CI on Python 3.10–3.13.
 
+[0.3.0]: https://github.com/mukremin-nergiz/detectability/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/mukremin-nergiz/detectability/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/mukremin-nergiz/detectability/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/mukremin-nergiz/detectability/compare/v0.1.0...v0.1.1

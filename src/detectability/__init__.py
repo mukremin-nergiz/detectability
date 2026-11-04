@@ -1,6 +1,6 @@
 """Detectability: pre-survey detectability, modelled and reproducible."""
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 from .survey import DEFAULT_METHODS, METHODS, SHAPES, Report, Survey, Target, evaluate  # noqa: E402
 
