@@ -1,7 +1,7 @@
 # Detectability
 
 [![tests](https://github.com/mukremin-nergiz/detectability/actions/workflows/tests.yml/badge.svg)](https://github.com/mukremin-nergiz/detectability/actions/workflows/tests.yml)
-[![licence: BSD-3-Clause](https://img.shields.io/badge/licence-BSD--3--Clause-blue.svg)](LICENSE)
+[![licence: BSD-3-Clause](https://img.shields.io/badge/licence-BSD--3--Clause-blue.svg)](https://github.com/mukremin-nergiz/detectability/blob/main/LICENSE)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23931815.svg)](https://doi.org/10.5281/zenodo.23931815)
 
 **Pre-survey detectability, modelled and reproducible.** Describe a buried target and a survey. Detectability models the gravity and
@@ -118,7 +118,7 @@ source); field noise, which usually dominates, is a stated assumption that you c
 
 ## Citation
 
-See [CITATION.cff](CITATION.cff), or:
+See [CITATION.cff](https://github.com/mukremin-nergiz/detectability/blob/main/CITATION.cff), or:
 
 > Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.2.0) [Computer software].
 > Zenodo. https://doi.org/10.5281/zenodo.23931815

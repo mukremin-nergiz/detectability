@@ -11,7 +11,13 @@ keywords = ["geophysics", "gravity", "magnetics", "survey design", "near-surface
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Physics",
 ]
 requires-python = ">=3.10"
@@ -21,7 +27,11 @@ dependencies = ["numpy>=1.24"]
 
 [project.urls]
 Homepage = "https://detectability.mukreminnergiz.com"
+Documentation = "https://detectability.mukreminnergiz.com/method"
+Validation = "https://detectability.mukreminnergiz.com/validation"
 Repository = "https://github.com/mukremin-nergiz/detectability"
+Issues = "https://github.com/mukremin-nergiz/detectability/issues"
+Citation = "https://doi.org/10.5281/zenodo.23931815"
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
