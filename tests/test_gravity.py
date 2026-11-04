@@ -59,7 +59,7 @@ def test_vertical_cylinder_matches_cross_section_quadrature_also_above_the_rim()
     R = 3.0
     for top in (5.0, 0.3):                                   # deep, and shallow (sharp near the rim)
         x = np.array([0.0, 1.0, 2.5, 2.99, 3.0, 3.01, 3.5, 6.0, 20.0])
-        ref = _disc_line_masses(x, R, top, 30.0, DRHO, n=800)
+        ref = _disc_line_masses(x, R, top, 30.0, DRHO)
         assert np.allclose(gravity.vertical_cylinder(x, top, 30.0, R, DRHO), ref, rtol=1e-10, atol=0)
 
 
@@ -78,9 +78,11 @@ def test_vertical_cylinder_limits():
 
 def test_vertical_cylinder_open_at_the_surface():
     from detectability.validation import _disc_line_masses
-    x = np.array([0.0, 1.5, 2.9, 3.1, 5.0, 12.0])            # off the rim itself
-    g = gravity.vertical_cylinder(x, 0.0, 20.0, 3.0, DRHO)
-    assert np.allclose(g, _disc_line_masses(x, 3.0, 0.0, 20.0, DRHO, n=800), rtol=1e-6)
+    axis = 2 * np.pi * G * DRHO * (20.0 - np.hypot(20.0, 3.0) + 3.0)
+    assert gravity.vertical_cylinder(0.0, 0.0, 20.0, 3.0, DRHO) == pytest.approx(axis, rel=1e-8)   # top kept 1e-9 below
+    x = np.array([3.2, 5.0, 12.0])                           # outside the opening
+    assert np.allclose(gravity.vertical_cylinder(x, 0.0, 20.0, 3.0, DRHO), _disc_line_masses(x, 3.0, 0.0, 20.0, DRHO),
+                       rtol=1e-10)
     rim = gravity.vertical_cylinder(np.array([2.999, 3.0, 3.001]), 0.0, 20.0, 3.0, DRHO)   # steep but continuous
     assert np.all(np.isfinite(rim)) and rim[0] < rim[1] < rim[2]
     assert abs(rim[1] - (rim[0] + rim[2]) / 2) < 0.01 * np.ptp(rim)
