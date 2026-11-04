@@ -19,11 +19,12 @@ STATIONS_ACROSS = 5
 class Instrument:
     """An instrument preset: its noise, what the figure means and where it comes from (checked 4 Nov 2026)."""
 
-    method: str          # "gravity" or "magnetic"
-    noise: float         # one standard deviation of a reading, in µGal (gravity) or nT (magnetic)
+    method: str          # "gravity", "magnetic" or "gradient" (magnetic vertical gradient)
+    noise: float         # one standard deviation of a reading, in µGal (gravity) or nT (magnetic and gradient)
     basis: str           # what the manufacturer's figure is
     reference: str       # instrument the figure is taken from
     source: str          # data sheet or publication
+    baseline: float | None = None   # m, vertical distance between the two sensors (gradiometers)
 
 
 INSTRUMENTS: dict[str, Instrument] = {
@@ -45,18 +46,37 @@ INSTRUMENTS: dict[str, Instrument] = {
     "caesium vapour": Instrument(
         "magnetic", 0.008, "noise < 0.008 nT/√Hz RMS, i.e. at 1 Hz", "Geometrics G-858",
         "https://www.geomatrix.co.uk/land-products/magnetic/g-858/"),
+    # Vertical gradiometers: two sensors one above the other; the reading is the lower minus the upper sensor, in nT
+    # over the baseline (as Bartington and Foerster report it; nT/m only for a 1 m baseline).
+    "Bartington Grad601": Instrument(
+        "gradient", 0.1, "noise 100 pT peak-to-peak maximum, taken as one standard deviation to be conservative",
+        "Bartington Grad-01-1000L sensor (Grad601)", "https://www.bartingtondownloads.com/wp-content/uploads/DS0060.pdf",
+        baseline=1.0),
+    "Sensys FGM650": Instrument(
+        "gradient", 0.04, "noise < 40 pT rms/√Hz at 1 Hz", "Sensys FGM650 fluxgate gradiometer",
+        "https://sensysmagnetometer.com/de/produkte/fgm650-gradiometer/", baseline=0.65),
+    "Foerster FEREX 4.034": Instrument(
+        "gradient", 0.04, "noise < 40 pT/√Hz at 1 Hz (MG-10 probe)", "Foerster FEREX 4.034 with MG-10-550 probe",
+        "https://www.foerstergroup.com/FOERSTER/downloads/product/ferex/FOERSTER_FLY_FEREX4.034_DE.pdf", baseline=0.55),
+    "GEM GSM-19G": Instrument(
+        "gradient", 0.031, "0.022 nT at 1 Hz per sensor; two sensors in difference give 0.022 × √2",
+        "GEM Systems GSM-19G Overhauser gradiometer (one staff section, 0.56 m, per the manual)",
+        "https://www.gemsys.ca/wp-content/themes/gemsystems/pdf/GEM_Overhauser_GSM_19_fin.pdf", baseline=0.56),
 }
-# Fluxgate gradiometers (e.g. Bartington Grad601) measure a vertical gradient, not the total-field anomaly modelled
-# here, so they are not offered until a gradiometer response is implemented.
 
 GRAVIMETERS_UGAL: dict[str, float] = {k: v.noise for k, v in INSTRUMENTS.items() if v.method == "gravity"}
 MAGNETOMETERS_NT: dict[str, float] = {k: v.noise for k, v in INSTRUMENTS.items() if v.method == "magnetic"}
+GRADIOMETERS_NT: dict[str, float] = {k: v.noise for k, v in INSTRUMENTS.items() if v.method == "gradient"}
 
 # Field noise is what remains after corrections and usually dominates the instrument noise.
 DEFAULT_FIELD_NOISE_UGAL = 10.0  # microgravity: tares, drift residuals, terrain, cultural noise
 DEFAULT_FIELD_NOISE_NT = 2.0     # quiet rural site after diurnal correction; urban and industrial sites are far noisier
+# Gradient surveys cancel diurnal variation and the regional field, so their field noise is mainly soil, heading and
+# walking noise. 0.5 nT is an assumption, not a published figure (the Grad601 manual asks for a set-up spot that varies
+# by less than about 0.5 nT over 1 m); change it for the site.
+DEFAULT_FIELD_NOISE_GRADIENT_NT = 0.5
 
-UNITS = {"gravity": "µGal", "magnetic": "nT"}
+UNITS = {"gravity": "µGal", "magnetic": "nT", "gradient": "nT"}
 
 
 def effective_noise(instrument: float, field_noise: float) -> float:
@@ -143,7 +163,7 @@ def assess(x, anomaly, noise: float, depth: float, method: str = "gravity") -> A
         f"Station spacing allows at least {STATIONS_ACROSS} stations across the anomaly width ({width:.3g} m).",
         "Flat topography, homogeneous host and no regional trend; terrain and regional effects reduce the margin.",
     ]
-    if method == "magnetic":
+    if method in ("magnetic", "gradient"):
         assumptions.append("Peak is the largest absolute value of the (often two-lobed) anomaly; no remanence unless given.")
     return Assessment(method, peak, float(x[peak_i]), width, shape, noise, snr, verdict, spacing, length, assumptions,
                       unit)

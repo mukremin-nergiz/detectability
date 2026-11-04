@@ -20,7 +20,8 @@ import numpy as np
 from . import __version__, detect, gravity, igrf, magnetics, rocks
 from .constants import SI_TO_UGAL
 
-METHODS = ("gravity", "magnetic")
+METHODS = ("gravity", "magnetic", "gradient")   # gradient: magnetic vertical gradient (two-sensor gradiometer)
+DEFAULT_METHODS = ("gravity", "magnetic")
 
 SHAPES: dict[str, str] = {
     "sphere": "Sphere (cavity, boulder, buried object). size = diameter.",
@@ -72,6 +73,11 @@ class Survey:
     magnetic_field_noise: float = detect.DEFAULT_FIELD_NOISE_NT       # nT
     magnetic_instrument_noise: float | None = None                    # nT, overrides the magnetometer preset
     sensor_height: float = 0.5            # m, magnetometer sensor above ground
+    gradiometer: str = "Bartington Grad601"
+    gradient_field_noise: float = detect.DEFAULT_FIELD_NOISE_GRADIENT_NT   # nT, of the gradiometer reading
+    gradient_instrument_noise: float | None = None                         # nT, overrides the gradiometer preset
+    gradiometer_height: float = 0.2       # m, lower sensor above ground (Bartington: about 20 cm in normal use)
+    gradiometer_baseline: float | None = None   # m between the sensors; default: the gradiometer preset's
     profile_azimuth: float = 0.0          # degrees east of north; 2D targets strike at right angles to it
     latitude: float | None = None         # for the main field (IGRF-14); needed for magnetics
     longitude: float | None = None
@@ -261,7 +267,13 @@ def _main_field(s: Survey):
                                            "inclination": round(f.inclination, 3), "declination": round(f.declination, 3)}
 
 
-def evaluate(target, survey=None, methods=METHODS) -> Report:
+def _gradient(t: Target, x, chi, amb, s: Survey, baseline: float):
+    """Gradiometer reading: total-field anomaly at the lower sensor minus that at the upper sensor, in nT."""
+    low, high = replace(s, sensor_height=s.gradiometer_height), replace(s, sensor_height=s.gradiometer_height + baseline)
+    return _magnetic(t, x, chi, amb, low) - _magnetic(t, x, chi, amb, high)
+
+
+def evaluate(target, survey=None, methods=DEFAULT_METHODS) -> Report:
     """Model ``target`` (a ``Target`` or dict) for each method and assess it for ``survey`` (a ``Survey`` or dict)."""
     t, s = _as(Target, target), _as(Survey, survey)
     t.validate()
@@ -295,18 +307,36 @@ def evaluate(target, survey=None, methods=METHODS) -> Report:
                 results.append(MethodResult(method, False, "needs the survey location (latitude, longitude) for the "
                                             "main field, or field_total/inclination/declination"))
                 continue
-            inst = s.magnetic_instrument_noise if s.magnetic_instrument_noise is not None else \
-                detect.MAGNETOMETERS_NT.get(s.magnetometer)
-            if inst is None:
-                results.append(MethodResult(method, False, f"unknown magnetometer {s.magnetometer!r}"))
-                continue
-            noise = detect.effective_noise(inst, s.magnetic_field_noise)
-            anomaly = _magnetic(t, x, contrast, amb, s)
-            res = MethodResult(method, True, contrast=contrast, contrast_units=units, instrument=s.magnetometer,
-                               instrument_noise=inst, field_noise=s.magnetic_field_noise, main_field=info)
+            if method == "magnetic":
+                inst = s.magnetic_instrument_noise if s.magnetic_instrument_noise is not None else \
+                    detect.MAGNETOMETERS_NT.get(s.magnetometer)
+                if inst is None:
+                    results.append(MethodResult(method, False, f"unknown magnetometer {s.magnetometer!r}"))
+                    continue
+                noise = detect.effective_noise(inst, s.magnetic_field_noise)
+                anomaly = _magnetic(t, x, contrast, amb, s)
+                res = MethodResult(method, True, contrast=contrast, contrast_units=units, instrument=s.magnetometer,
+                                   instrument_noise=inst, field_noise=s.magnetic_field_noise, main_field=info)
+            else:
+                preset = detect.INSTRUMENTS.get(s.gradiometer)
+                inst = s.gradient_instrument_noise if s.gradient_instrument_noise is not None else \
+                    (preset.noise if preset and preset.method == "gradient" else None)
+                baseline = s.gradiometer_baseline if s.gradiometer_baseline is not None else \
+                    (preset.baseline if preset and preset.method == "gradient" else None)
+                if inst is None or baseline is None:
+                    results.append(MethodResult(method, False, f"unknown gradiometer {s.gradiometer!r} (or give "
+                                                "gradient_instrument_noise and gradiometer_baseline)"))
+                    continue
+                if baseline <= 0 or s.gradiometer_height < 0:
+                    raise ValueError("gradiometer_baseline must be positive and gradiometer_height zero or positive")
+                noise = detect.effective_noise(inst, s.gradient_field_noise)
+                anomaly = _gradient(t, x, contrast, amb, s, baseline)
+                res = MethodResult(method, True, contrast=contrast, contrast_units=units, instrument=s.gradiometer,
+                                   instrument_noise=inst, field_noise=s.gradient_field_noise, main_field=info)
         a = detect.assess(x, anomaly, noise, depth=t.depth_top, method=method)
         preset = detect.INSTRUMENTS.get(res.instrument)
-        overridden = (s.gravity_instrument_noise if method == "gravity" else s.magnetic_instrument_noise) is not None
+        overridden = {"gravity": s.gravity_instrument_noise, "magnetic": s.magnetic_instrument_noise,
+                      "gradient": s.gradient_instrument_noise}[method] is not None
         if preset and not overridden:
             a.assumptions.append(f"{res.instrument}: {preset.noise:g} {a.units} per reading ({preset.basis}; "
                                  f"{preset.reference} data sheet).")
@@ -315,6 +345,11 @@ def evaluate(target, survey=None, methods=METHODS) -> Report:
         if method == "magnetic":
             a.assumptions.append(f"Sensor {s.sensor_height:g} m above ground; profile azimuth {s.profile_azimuth:g}°; "
                                  "induced magnetisation only, no demagnetisation.")
+        if method == "gradient":
+            top = s.gradiometer_height + baseline
+            a.assumptions.append(f"Reading: lower sensor ({s.gradiometer_height:g} m above ground) minus upper sensor "
+                                 f"({top:g} m), in nT over the {baseline:g} m baseline; diurnal variation and the regional "
+                                 f"field cancel. Profile azimuth {s.profile_azimuth:g}°; induced magnetisation only.")
         res.x, res.anomaly, res.assessment = x.round(4).tolist(), anomaly.tolist(), a
         results.append(res)
 

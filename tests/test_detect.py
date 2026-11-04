@@ -66,8 +66,17 @@ def test_void_in_limestone_magnetic_example():
 def test_instrument_presets_have_sources():
     assert detect.INSTRUMENTS
     for name, inst in detect.INSTRUMENTS.items():
-        assert inst.method in ("gravity", "magnetic"), name
+        assert inst.method in ("gravity", "magnetic", "gradient"), name
         assert inst.noise > 0 and inst.source.startswith("https://") and inst.reference, name
     assert detect.GRAVIMETERS_UGAL["Scintrex CG-6"] == 5.0
     assert detect.MAGNETOMETERS_NT["Overhauser"] == 0.022
-    assert "fluxgate gradiometer" not in detect.MAGNETOMETERS_NT  # measures a gradient, not the total field
+    assert "Bartington Grad601" not in detect.MAGNETOMETERS_NT  # a gradiometer reading, not the total field
+
+
+def test_gradiometer_presets_have_a_baseline_and_a_source():
+    grads = {k: v for k, v in detect.INSTRUMENTS.items() if v.method == "gradient"}
+    assert len(grads) >= 3 and set(grads) == set(detect.GRADIOMETERS_NT)
+    for name, inst in grads.items():
+        assert inst.baseline and 0.3 <= inst.baseline <= 1.5, name
+        assert inst.source.startswith("https://") and inst.noise > 0, name
+    assert all(v.baseline is None for v in detect.INSTRUMENTS.values() if v.method != "gradient")

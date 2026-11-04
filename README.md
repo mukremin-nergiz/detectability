@@ -49,16 +49,24 @@ Target shapes: `sphere`, `horizontal_cylinder`, `vertical_cylinder`, `prism`, `d
 geomagnetic field comes from IGRF-14 for the survey location and date. Typical densities and susceptibilities are built
 in, and measured contrasts can be given instead.
 
+Methods: `gravity`, `magnetic` (total-field anomaly) and, on request, `gradient`: the reading of a vertical gradiometer
+(lower minus upper sensor, in nT over the baseline), with presets for the Bartington Grad601, Sensys FGM650, Foerster
+FEREX 4.034 and GEM GSM-19G. The defaults are `gravity` and `magnetic`:
+
+```python
+evaluate(target, survey, methods=["gravity", "magnetic", "gradient"])
+```
+
 ## Modules
 
 | Module | Contents |
 |---|---|
 | `survey` | `evaluate()`: target and survey in, report and reproduction script out |
 | `gravity` | sphere, horizontal cylinder, right rectangular prism (Nagy; Plouff) and its gradient tensor, vertical cylinder (exact, by a rim integral) and its gradient tensor, vertical step, dyke, 2D polygon (Talwani; Won & Bevis) |
-| `magnetics` | total-field anomaly: sphere, horizontal cylinder, prism, vertical cylinder, 2D polygon, dyke (any dip), vertical contact; induced and remanent magnetisation |
+| `magnetics` | total-field anomaly: sphere, horizontal cylinder, prism, vertical cylinder, 2D polygon, dyke (any dip), vertical contact; induced and remanent magnetisation (a gradiometer reading is the difference at two sensor heights) |
 | `igrf` | IGRF-14 main field from location and date, from the official IAGA coefficients |
 | `rocks` | typical densities and magnetic susceptibilities with their ranges (Telford et al. 1990) |
-| `detect` | instrument and field noise, signal-to-noise ratio, verdict, station spacing, profile length |
+| `detect` | instrument presets with their sources (gravimeters, magnetometers, gradiometers), field noise, signal-to-noise ratio, verdict, station spacing, profile length |
 
 ## Validation
 
@@ -84,6 +92,7 @@ python tools/harmonica_reference.py --check
 | Analytical limit | Vertical cylinder, gravity, on its axis | Exact on-axis cylinder formula | 1.7e-13 % | 1.0e-10 % |
 | Independent formula | Horizontal cylinder, gravity | 2D polygon, 720 sides (Talwani; Won & Bevis) | 6.3e-12 % | 0.01 % |
 | Independent formula | Vertical dyke, gravity | 2D polygon (Won & Bevis) | 1.9e-13 % | 1.0e-06 % |
+| Independent formula | Sphere, magnetic gradient (gradiometer reading) | Closed-form vertical-dipole field at both sensors | 7.8e-14 % | 1.0e-10 % |
 | Numerical integration | Prism, gravity | 16³ Gauss–Legendre point masses | 2.9e-06 % | 0.001 % |
 | Numerical integration | Horizontal cylinder, magnetic | 3D dipoles integrated along strike | 2.2e-07 % | 0.01 % |
 | Numerical integration | Prism, magnetic | 16³ Gauss–Legendre point dipoles | 1.3e-12 % | 0.001 % |
@@ -114,7 +123,8 @@ pytest
 Flat topography, a homogeneous host and no regional trend; 2D targets are infinitely long along strike; the profile
 crosses the centre of the target; self-demagnetisation is neglected. Results are expectations under these assumptions,
 not guarantees. Instrument presets come from manufacturers' data sheets (`detect.INSTRUMENTS` lists each figure and its
-source); field noise, which usually dominates, is a stated assumption that you can change.
+source); field noise, which usually dominates, is a stated assumption that you can change. For gradiometers the default
+field noise (0.5 nT) is an assumption, not a published figure: soil, heading and walking noise depend on the site.
 
 ## Citation
 

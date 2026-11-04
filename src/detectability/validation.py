@@ -240,6 +240,24 @@ def cases() -> list[Case]:
         gravity.dyke(x, 3, 15, 4, 500.0, centre=7) * SI_TO_UGAL,
         gravity.polygon(x, [(5, 3), (9, 3), (9, 15), (5, 15)], 500.0) * SI_TO_UGAL))
 
+    # gradiometer reading of a sphere at the pole: closed-form dipole field at the two sensor heights
+    x = np.linspace(-20, 20, 81)
+    depth, radius, low, base = 3.0, 0.5, 0.2, 1.0
+    m = CHI * POLE.total * 1e-9 / MU0 * 4 / 3 * np.pi * radius**3
+
+    def _pole_dipole(h):
+        z = depth + h                          # depth of the centre below the sensor
+        return MU0 / (4 * np.pi) * m * (2 * z**2 - x**2) / (x**2 + z**2) ** 2.5 * 1e9
+
+    from .survey import _gradient, Survey, Target
+    sphere_target = Target("sphere", depth - radius, 2 * radius)
+    reading = _gradient(sphere_target, x, CHI, POLE, Survey(gradiometer_height=low), base)
+    out.append(_profile_case(
+        "gradient-sphere-pole", "Independent formula", "Sphere, magnetic gradient (gradiometer reading)",
+        "Total-field model at the lower minus the upper sensor", "Closed-form vertical-dipole field at both sensors",
+        "Radius 0.5 m, centre at 3 m, sensors 0.2 and 1.2 m above ground, at the pole", "nT", 1e-10, x, reading,
+        _pole_dipole(low) - _pole_dipole(low + base)))
+
     # --- numerical integration -------------------------------------------------------------------------------
     x = np.linspace(-40, 40, 81)
     box = ((-3.0, 3.0), (-4.0, 4.0), (2.0, 6.0))

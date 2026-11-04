@@ -2,6 +2,6 @@
 
 __version__ = "0.2.1"
 
-from .survey import METHODS, SHAPES, Report, Survey, Target, evaluate  # noqa: E402
+from .survey import DEFAULT_METHODS, METHODS, SHAPES, Report, Survey, Target, evaluate  # noqa: E402
 
-__all__ = ["evaluate", "Target", "Survey", "Report", "SHAPES", "METHODS", "__version__"]
+__all__ = ["evaluate", "Target", "Survey", "Report", "SHAPES", "METHODS", "DEFAULT_METHODS", "__version__"]
