@@ -1,0 +1,74 @@
+# Changelog
+
+All notable changes to Detectability. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and the project uses [semantic versioning](https://semver.org/). Each release is archived on Zenodo with its own DOI;
+the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.23931815) always resolves to the latest.
+
+## [0.2.1] - 2026-11-04
+
+DOI [10.5281/zenodo.23948416](https://doi.org/10.5281/zenodo.23948416)
+
+### Added
+- Published on PyPI: `pip install detectability`. Releases are uploaded from GitHub Actions with trusted publishing
+  (no stored token); the package is built, checked with `twine check --strict` and tested before upload.
+- Package metadata: supported Python versions, and links to the documentation, validation, issue tracker and citation.
+
+### Changed
+- The reproduction script from `Report.script()` pins the exact version (`pip install "detectability==0.2.1"`).
+- Absolute links in the README, so they also work on PyPI.
+
+No change to the models or results.
+
+## [0.2.0] - 2026-11-04
+
+DOI [10.5281/zenodo.23947287](https://doi.org/10.5281/zenodo.23947287)
+
+### Added
+- `gravity.vertical_cylinder_tensor`: the gravity gradient tensor of a vertical cylinder.
+- Validation against an independent code: six "Independent code" rows compare the prism, the sphere and the vertical
+  dyke (gravity and magnetic) with Harmonica 0.7.0 (Fatiando a Terra Project,
+  [doi:10.5281/zenodo.13308312](https://doi.org/10.5281/zenodo.13308312)). The reference values are stored in
+  `data/harmonica_reference.json`; `tools/harmonica_reference.py --check` recomputes them, and a CI job does so on
+  every change. Harmonica is an optional extra (`pip install -e ".[validation]"`), not a dependency.
+- Four validation rows for the vertical cylinder: exact on-axis formula, cross-section quadrature, volume dipole
+  quadrature (magnetic) and Poisson's relation.
+
+### Changed
+- **The vertical cylinder is now exact** in gravity and magnetics. The volume integral is done in closed form in depth
+  and along each ray from the station, leaving one integral round the rim, summed with the trapezoid rule to about 15
+  digits, also right above the rim. It replaces a square prism of equal cross-section, which was off by 0.34 % in
+  gravity and 0.67 % in the magnetic field on the axis of the validation example: **vertical-cylinder results change
+  by up to that amount.** The validation tolerance went from 3 % to 1e-10 %.
+
+## [0.1.1] - 2026-11-03
+
+DOI [10.5281/zenodo.23932438](https://doi.org/10.5281/zenodo.23932438)
+
+### Changed
+- Instrument presets checked against the manufacturers' data sheets; each preset records its figure and source
+  (`detect.INSTRUMENTS`), and every result states it. LaCoste & Romberg G 10 → 20 µGal (upper value of the stated
+  repeatability), proton precession 0.2 → 0.1 nT (Geometrics G-856AX), Overhauser 0.05 → 0.022 nT (GEM GSM-19 v7),
+  caesium vapour 0.01 → 0.008 nT (Geometrics G-858). Magnetic verdicts are practically unchanged, because field noise
+  dominates.
+
+### Removed
+- The fluxgate gradiometer preset: a gradiometer measures a vertical gradient, not the total-field anomaly modelled.
+
+## [0.1.0] - 2026-11-03
+
+DOI [10.5281/zenodo.23931816](https://doi.org/10.5281/zenodo.23931816)
+
+### Added
+- First public release. `evaluate()` models the gravity and magnetic anomaly of a described target along a profile,
+  takes the main field from IGRF-14 for the location and date, compares the anomaly with instrument and field noise,
+  and returns a verdict per method, the recommended method, station spacing, profile length, every assumption and a
+  script that reproduces the result.
+- Gravity: sphere, horizontal cylinder, rectangular prism (Nagy; Plouff) and its gradient tensor, vertical cylinder,
+  vertical step, dyke of any dip, 2D polygon (Talwani; Won & Bevis). Magnetics (induced and remanent magnetisation):
+  sphere, horizontal cylinder, prism, vertical cylinder, 2D polygon, dyke of any dip, vertical contact.
+- Validation module and tests against independent results; CI on Python 3.10–3.13.
+
+[0.2.1]: https://github.com/mukremin-nergiz/detectability/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/mukremin-nergiz/detectability/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/mukremin-nergiz/detectability/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/mukremin-nergiz/detectability/releases/tag/v0.1.0

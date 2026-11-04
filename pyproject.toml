@@ -31,6 +31,7 @@ Documentation = "https://detectability.mukreminnergiz.com/method"
 Validation = "https://detectability.mukreminnergiz.com/validation"
 Repository = "https://github.com/mukremin-nergiz/detectability"
 Issues = "https://github.com/mukremin-nergiz/detectability/issues"
+Changelog = "https://github.com/mukremin-nergiz/detectability/blob/main/CHANGELOG.md"
 Citation = "https://doi.org/10.5281/zenodo.23931815"
 
 [project.optional-dependencies]

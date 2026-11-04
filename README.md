@@ -123,7 +123,8 @@ See [CITATION.cff](https://github.com/mukremin-nergiz/detectability/blob/main/CI
 > Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.2.1) [Computer software].
 > Zenodo. https://doi.org/10.5281/zenodo.23931815
 
-The DOI above always resolves to the latest version; each release also has its own DOI on Zenodo.
+The DOI above always resolves to the latest version; each release also has its own DOI on Zenodo. Changes between
+releases: [CHANGELOG.md](https://github.com/mukremin-nergiz/detectability/blob/main/CHANGELOG.md).
 
 ## Author
 
