@@ -6,6 +6,8 @@ the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.2393181
 
 ## [0.4.0] - 2026-11-11
 
+DOI [10.5281/zenodo.24134972](https://doi.org/10.5281/zenodo.24134972)
+
 ### Added
 - Ground-penetrating radar: a new method, `gpr`, and module `detectability.gpr`. The echo of the target's top surface
   (reflection coefficient, two-way attenuation, spreading and a target-size factor) is compared with the system
