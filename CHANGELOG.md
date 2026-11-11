@@ -6,6 +6,8 @@ the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.2393181
 
 ## [0.5.0] - 2026-11-11
 
+DOI [10.5281/zenodo.24136298](https://doi.org/10.5281/zenodo.24136298)
+
 ### Added
 - Electrical resistivity tomography: a new method, `ert`, and module `detectability.ert` (optional dependency pyGIMLi,
   `pip install "detectability[ert]"`). Electrodes centred over the target (survey fields `ert_array`: dipole-dipole,
