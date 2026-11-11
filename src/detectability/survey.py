@@ -17,10 +17,10 @@ from dataclasses import asdict, dataclass, field, fields, replace
 
 import numpy as np
 
-from . import __version__, detect, gravity, igrf, magnetics, rocks
+from . import __version__, detect, gpr, gravity, igrf, magnetics, rocks
 from .constants import SI_TO_UGAL
 
-METHODS = ("gravity", "magnetic", "gradient")   # gradient: magnetic vertical gradient (two-sensor gradiometer)
+METHODS = ("gravity", "magnetic", "gradient", "gpr")   # gradient: magnetic vertical gradient; gpr: ground-penetrating radar
 DEFAULT_METHODS = ("gravity", "magnetic")
 
 SHAPES: dict[str, str] = {
@@ -50,6 +50,10 @@ class Target:
     host: str = "limestone"               # surrounding material
     density_contrast: float | None = None          # kg/m^3, overrides the material tables
     susceptibility_contrast: float | None = None   # SI, overrides the material tables
+    permittivity: float | None = None              # relative, of the target (GPR); overrides the material table
+    conductivity: float | None = None              # mS/m, of the target (GPR)
+    host_permittivity: float | None = None         # relative, of the host (GPR)
+    host_conductivity: float | None = None         # mS/m, of the host (GPR)
 
     def validate(self) -> None:
         if self.shape not in SHAPES:
@@ -82,6 +86,8 @@ class Survey:
     latitude: float | None = None         # for the main field (IGRF-14); needed for magnetics
     longitude: float | None = None
     date: str | None = None               # ISO date of the survey; default: today
+    gpr_frequency: float | None = None    # MHz, antenna centre frequency; default: from the target depth
+    gpr_system_performance: float = gpr.DEFAULT_SYSTEM_PERFORMANCE_DB   # dB, largest two-way loss the system records
     field_total: float | None = None      # nT; main field given directly instead of IGRF (all three together)
     field_inclination: float | None = None
     field_declination: float | None = None
@@ -101,6 +107,7 @@ class MethodResult:
     x: list[float] = field(default_factory=list)
     anomaly: list[float] = field(default_factory=list)
     assessment: detect.Assessment | None = None
+    details: dict | None = None           # method-specific figures (GPR: frequency, velocity, attenuation, ...)
 
 
 @dataclass
@@ -129,8 +136,14 @@ class Report:
                 lines.append(f"- {r.method}: not assessed ({r.reason})")
                 continue
             a = r.assessment
-            lines.append(f"- {r.method}: peak {a.peak:.3g} {a.units}, noise {a.noise:.3g} {a.units}, "
-                         f"S/N {a.snr:.3g}: {a.verdict}")
+            if r.method == "gpr":
+                d = r.details
+                margin = 20 * np.log10(a.snr) if a.snr > 0 else float("-inf")
+                lines.append(f"- gpr ({d['frequency_mhz']:g} MHz): echo {margin:+.1f} dB against the detection limit, "
+                             f"S/N {a.snr:.3g}: {a.verdict}")
+            else:
+                lines.append(f"- {r.method}: peak {a.peak:.3g} {a.units}, noise {a.noise:.3g} {a.units}, "
+                             f"S/N {a.snr:.3g}: {a.verdict}")
             if a.verdict != "not detectable":
                 lines.append(f"  stations every {a.station_spacing:g} m or less, profile at least "
                              f"{a.profile_length:.0f} m long")
@@ -273,6 +286,99 @@ def _gradient(t: Target, x, chi, amb, s: Survey, baseline: float):
     return _magnetic(t, x, chi, amb, low) - _magnetic(t, x, chi, amb, high)
 
 
+def _gpr_medium(name: str, permittivity, conductivity):
+    """Medium from given properties or the GPR table; None for a metal (perfect conductor)."""
+    if permittivity is not None:
+        return gpr.Medium(permittivity, (conductivity or 0.0) / 1000.0)
+    if name in gpr.METALS:
+        return None
+    m = gpr.medium(name)
+    return m if conductivity is None else gpr.Medium(m.permittivity, conductivity / 1000.0)
+
+
+def _gpr(t: Target, s: Survey, x) -> MethodResult:
+    """Ground-penetrating radar: echo of the target's top surface against the system's detection limit."""
+    if t.shape == "contact":
+        return MethodResult("gpr", False, "a vertical contact has no horizontal surface to reflect the radar wave; "
+                            "GPR sees it only as a diffraction at its top edge, which is not modelled")
+    if t.depth_top <= 0:
+        return MethodResult("gpr", False, "GPR needs the target below the surface (depth_top > 0)")
+    try:
+        if t.host in gpr.METALS:
+            raise KeyError(f"the host cannot be a metal for GPR")
+        host = _gpr_medium(t.host, t.host_permittivity, t.host_conductivity)
+        target = _gpr_medium(t.material, t.permittivity, t.conductivity)
+    except KeyError as e:
+        return MethodResult("gpr", False, str(e.args[0]) + " (give permittivity and conductivity directly)")
+    if s.gpr_system_performance <= 0 or (s.gpr_frequency is not None and s.gpr_frequency <= 0):
+        raise ValueError("gpr_frequency and gpr_system_performance must be positive")
+
+    f_mhz = s.gpr_frequency or gpr.frequency_for_depth(t.depth_top)
+    f = f_mhz * 1e6
+    R = gpr.reflection(host, target, f)
+    lam = host.wavelength(f)
+    v = host.velocity(f)
+    a = (t.size or 0) / 2
+    if t.shape in ("sphere", "horizontal_cylinder"):
+        centre = t.depth_top + a
+        r = np.hypot(x, centre) - a
+        factor = gpr.size_factor("sphere" if t.shape == "sphere" else "cylinder", r, lam, a=a)
+    else:
+        r = np.hypot(x, t.depth_top)
+        if t.shape == "vertical_cylinder":
+            factor = gpr.size_factor("disc", r, lam, a=a)
+        elif t.shape == "prism":
+            factor = gpr.size_factor("rectangle", r, lam, width=t.size, length=t.length or t.size)
+        else:
+            factor = gpr.size_factor("strip", r, lam, width=t.size)
+    amplitude = gpr.echo(r, host, R, factor, f)
+    floor = 10 ** (-s.gpr_system_performance / 20)
+    snr_profile = amplitude / floor
+    a_ = detect.assess(x, snr_profile, 1.0, depth=t.depth_top, method="gpr")
+    nyquist = lam / 4
+    a_.station_spacing = detect._nice(min(a_.width / detect.STATIONS_ACROSS, nyquist))
+    t0 = gpr.two_way_time_ns(t.depth_top, v)
+    window = 1.3 * gpr.two_way_time_ns(max(t.depth_top + (t.size or 0), t.depth_top), v)
+    alpha = float(host.attenuation_db(f))
+    k_a = 2 * np.pi * a / lam
+    a_.assumptions = [
+        f"Signal-to-noise thresholds: >= {detect.CLEAR:g} clearly detectable, {detect.MARGINAL:g}-{detect.CLEAR:g} "
+        f"marginal, < {detect.MARGINAL:g} not detectable; S/N is the echo over the system's detection limit.",
+        f"System performance {s.gpr_system_performance:g} dB (largest two-way loss recorded, referred to 1 m; "
+        "typical systems 90-130 dB). It includes antenna gain and coupling; clutter and noise at the site lower it.",
+        f"Antenna {f_mhz:g} MHz" + ("" if s.gpr_frequency else " (chosen from the target depth)") +
+        f"; host: relative permittivity {host.permittivity:g}, conductivity {host.conductivity * 1000:g} mS/m, "
+        f"velocity {v / 1e9:.3g} m/ns, attenuation {alpha:.3g} dB/m (one way).",
+        "Reflection coefficient " + ("-1 (metal)" if target is None else f"{abs(R):.3g} (normal incidence, "
+                                     f"target permittivity {target.permittivity:g}, conductivity "
+                                     f"{target.conductivity * 1000:g} mS/m)") + ".",
+        "Homogeneous host with frequency-independent properties; real soils lose more at high frequency, so wet or "
+        "clayey ground above ~500 MHz is optimistic.",
+        f"Trace spacing at most a quarter wavelength in the host ({nyquist:.3g} m) and {detect.STATIONS_ACROSS} traces "
+        "across the echo.",
+        f"Two-way time to the target top {t0:.3g} ns; record at least {window:.3g} ns (30 % margin).",
+    ]
+    if t.shape in ("sphere", "horizontal_cylinder"):
+        a_.assumptions.append("Curved target: geometric optics" + (f"; small against the wavelength (k a = {k_a:.2g}), "
+                              "Rayleigh scaling applied" if k_a < 1 else "") + ".")
+    else:
+        a_.assumptions.append("Echo of the flat top surface; a top smaller than the first Fresnel zone returns the "
+                              "fraction of the zone it covers.")
+    if (t.size or 0) < nyquist:
+        a_.assumptions.append(f"The target ({t.size:g} m) is smaller than the vertical resolution (a quarter "
+                              f"wavelength, {nyquist:.3g} m): it shows as a diffraction hyperbola, its size is not resolved.")
+    if t.shape in TWO_D:
+        a_.assumptions.append("2D target: infinitely long along strike, at right angles to the profile.")
+    details = {"frequency_mhz": float(f_mhz), "velocity_m_per_ns": float(v / 1e9), "attenuation_db_per_m": alpha,
+               "wavelength_m": float(lam), "reflection_coefficient": float(abs(R)), "two_way_time_ns": float(t0),
+               "time_window_ns": float(window), "vertical_resolution_m": float(nyquist),
+               "margin_db": float(20 * np.log10(a_.snr)) if a_.snr > 0 else None,
+               "system_performance_db": s.gpr_system_performance}
+    return MethodResult("gpr", True, contrast=abs(R), contrast_units="reflection coefficient",
+                        instrument=f"{f_mhz:g} MHz antenna", x=x.round(4).tolist(), anomaly=snr_profile.tolist(),
+                        assessment=a_, details=details)
+
+
 def evaluate(target, survey=None, methods=DEFAULT_METHODS) -> Report:
     """Model ``target`` (a ``Target`` or dict) for each method and assess it for ``survey`` (a ``Survey`` or dict)."""
     t, s = _as(Target, target), _as(Survey, survey)
@@ -287,6 +393,9 @@ def evaluate(target, survey=None, methods=DEFAULT_METHODS) -> Report:
     x = _profile(t)
     results = []
     for method in methods:
+        if method == "gpr":
+            results.append(_gpr(t, s, x))
+            continue
         contrast, units, problem = _contrast(t, method)
         if contrast is None:
             results.append(MethodResult(method, False, problem))

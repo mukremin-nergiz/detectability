@@ -18,7 +18,7 @@ from importlib import resources
 
 import numpy as np
 
-from . import gravity, igrf, magnetics
+from . import gpr, gravity, igrf, magnetics
 from .constants import G, SI_TO_UGAL
 from .magnetics import MU0, Ambient
 
@@ -329,6 +329,40 @@ def cases() -> list[Case]:
         "Vertical derivative of the gravity step", "Slab from 5 to 40 m, at the pole", "nT", 1e-4, x,
         magnetics.contact(x, 5.0, 40.0, CHI, POLE),
         _poisson(_dgz_dz(lambda a, b: gravity.vertical_step(x, a, b, 1000.0), 5.0, 40.0), CHI, POLE, 1000.0)))
+
+    # --- ground-penetrating radar --------------------------------------------------------------------------------
+    lime = gpr.medium("limestone")
+    out.append(Case("gpr-low-loss", "Analytical limit", "GPR, attenuation in a low-loss host",
+                    "Exact complex wavenumber", "Low-loss limit 1636 σ/√εr dB/m (σ in S/m)", "Limestone (εr 6, 1 mS/m), 1 GHz",
+                    "dB/m", 0.01, _value_error(lime.attenuation_db(1e9),
+                                               gpr.low_loss_attenuation_db(lime.permittivity, lime.conductivity))))
+    sand = gpr.medium("dry sand")
+    out.append(Case("gpr-velocity", "Analytical limit", "GPR, velocity in a low-loss host", "Exact complex wavenumber",
+                    "c/√εr", "Dry sand (εr 4, 0.01 mS/m), 100 MHz", "m/ns", 1e-4,
+                    _value_error(sand.velocity(1e8), gpr.C0 / np.sqrt(sand.permittivity))))
+    air = gpr.Medium(1.0, 0.0)
+    dry_lime = gpr.Medium(lime.permittivity, 0.0)
+    out.append(Case("gpr-reflection", "Analytical limit", "GPR, reflection coefficient", "Ratio of complex impedances",
+                    "(√ε1 − √ε2)/(√ε1 + √ε2) for lossless media", "Air void in limestone (εr 6 and 1)", "", 1e-10,
+                    _value_error(abs(gpr.reflection(dry_lime, air, 1e8)),
+                                 (np.sqrt(6.0) - 1.0) / (np.sqrt(6.0) + 1.0))))
+    r = np.linspace(1.0, 50.0, 50)
+    out.append(Case(
+        "gpr-sphere-plane", "Analytical limit", "GPR, very large sphere", "Geometric optics (convex mirror)",
+        "Flat reflector at the same range", "Radius 10⁹ m, ranges 1–50 m, 100 MHz in limestone", "", 1e-4,
+        _profile_error(gpr.size_factor("sphere", r, lime.wavelength(1e8), a=1e9),
+                       gpr.size_factor("plane", r, lime.wavelength(1e8)))))
+    # Davis & Annan (1989) table, as reproduced in USACE EM 1110-1-1802 (1995) Table 4-3: velocity in m/ns.
+    table_v = {"dry sand": 0.15, "wet sand": 0.06, "limestone": 0.12, "shale": 0.09, "silt": 0.07, "clay": 0.06,
+               "granite": 0.13, "rock salt": 0.13, "ice": 0.16, "fresh water": 0.033}
+    names = list(table_v)
+    model_v = np.array([gpr.medium(n).velocity(1e8) / 1e9 for n in names])
+    ref_v = np.array([table_v[n] for n in names])
+    out.append(Case("gpr-table-velocity", "Published values", "GPR, velocity of common materials",
+                    "Exact velocity from the typical εr and σ, 100 MHz",
+                    "Davis & Annan (1989) table velocities (rounded to 0.01 m/ns)",
+                    "Ten materials, from dry sand to fresh water", "m/ns", 6.0,
+                    float(np.max(np.abs(model_v - ref_v) / ref_v * 100.0))))
 
     # --- independent code ---------------------------------------------------------------------------------------
     out.extend(_harmonica_cases())

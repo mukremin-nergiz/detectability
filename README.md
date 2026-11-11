@@ -51,10 +51,12 @@ in, and measured contrasts can be given instead.
 
 Methods: `gravity`, `magnetic` (total-field anomaly) and, on request, `gradient`: the reading of a vertical gradiometer
 (lower minus upper sensor, in nT over the baseline), with presets for the Bartington Grad601, Sensys FGM650, Foerster
-FEREX 4.034 and GEM GSM-19G. The defaults are `gravity` and `magnetic`:
+FEREX 4.034 and GEM GSM-19G; and, on request, `gpr`: ground-penetrating radar, the echo of the target's top against
+the system's detection limit (radar range equation), with velocity, attenuation, antenna frequency, trace spacing and
+recording window. The defaults are `gravity` and `magnetic`:
 
 ```python
-evaluate(target, survey, methods=["gravity", "magnetic", "gradient"])
+evaluate(target, survey, methods=["gravity", "magnetic", "gradient", "gpr"])
 ```
 
 ## Modules
@@ -64,6 +66,7 @@ evaluate(target, survey, methods=["gravity", "magnetic", "gradient"])
 | `survey` | `evaluate()`: target and survey in, report and reproduction script out |
 | `gravity` | sphere, horizontal cylinder, right rectangular prism (Nagy; Plouff) and its gradient tensor, vertical cylinder (exact, by a rim integral) and its gradient tensor, vertical step, dyke, 2D polygon (Talwani; Won & Bevis) |
 | `magnetics` | total-field anomaly: sphere, horizontal cylinder, prism, vertical cylinder, 2D polygon, dyke (any dip), vertical contact; induced and remanent magnetisation (a gradiometer reading is the difference at two sensor heights) |
+| `gpr` | ground-penetrating radar: exact velocity and attenuation of a lossy medium, normal-incidence reflection coefficient, target-size factor (geometric optics, Rayleigh regime, Fresnel zone), echo against system performance; typical permittivity and conductivity (Davis & Annan 1989) |
 | `igrf` | IGRF-14 main field from location and date, from the official IAGA coefficients |
 | `rocks` | typical densities and magnetic susceptibilities with their ranges (Telford et al. 1990) |
 | `detect` | instrument presets with their sources (gravimeters, magnetometers, gradiometers), field noise, signal-to-noise ratio, verdict, station spacing, profile length |
@@ -103,6 +106,11 @@ python tools/harmonica_reference.py --check
 | Poisson's relation | Dipping dyke (60°), gravity ↔ magnetic | Vertical derivative of the gravity dyke | 2.6e-08 % | 1.0e-04 % |
 | Poisson's relation | Vertical cylinder, gravity ↔ magnetic | Vertical derivative of the gravity cylinder | 3.6e-08 % | 1.0e-04 % |
 | Poisson's relation | Vertical contact, gravity ↔ magnetic | Vertical derivative of the gravity step | 3.9e-06 % | 1.0e-04 % |
+| Analytical limit | GPR, attenuation in a low-loss host | Low-loss limit 1636 σ/√εr dB/m (σ in S/m) | 1.1e-04 % | 0.01 % |
+| Analytical limit | GPR, velocity in a low-loss host | c/√εr | 2.5e-06 % | 1.0e-04 % |
+| Analytical limit | GPR, reflection coefficient | (√ε1 − √ε2)/(√ε1 + √ε2) for lossless media | 0.0e+00 % | 1.0e-10 % |
+| Analytical limit | GPR, very large sphere | Flat reflector at the same range | 5.0e-06 % | 1.0e-04 % |
+| Published values | GPR, velocity of common materials | Davis & Annan (1989) table velocities (rounded to 0.01 m/ns) | 4.92 % | 6 % |
 | Independent code | Prism, gravity | Harmonica 0.7.0 prism_gravity | 3.0e-12 % | 1.0e-08 % |
 | Independent code | Prism, magnetic | Harmonica 0.7.0 prism_magnetic | 4.8e-13 % | 1.0e-08 % |
 | Independent code | Sphere, gravity | Harmonica 0.7.0 point_gravity | 3.9e-14 % | 1.0e-10 % |

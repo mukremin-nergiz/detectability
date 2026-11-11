@@ -4,6 +4,22 @@ All notable changes to Detectability. The format follows [Keep a Changelog](http
 and the project uses [semantic versioning](https://semver.org/). Each release is archived on Zenodo with its own DOI;
 the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.23931815) always resolves to the latest.
 
+## [Unreleased]
+
+### Added
+- Ground-penetrating radar: a new method, `gpr`, and module `detectability.gpr`. The echo of the target's top surface
+  (reflection coefficient, two-way attenuation, spreading and a target-size factor) is compared with the system
+  performance (survey field `gpr_system_performance`, default 100 dB). Antenna centre frequency `gpr_frequency` (MHz;
+  default from the target depth), velocity and attenuation from the exact complex wavenumber, trace spacing at most a
+  quarter wavelength, recording window. Typical relative permittivity and conductivity of fourteen materials (Davis &
+  Annan 1989), new materials such as `dry sand`, `wet sand`, `silt`, `ice` and `metal` (perfect conductor); target
+  fields `permittivity`, `conductivity`, `host_permittivity` and `host_conductivity` override the table. A vertical
+  contact is not assessed by GPR.
+- Validation rows: low-loss attenuation limit, lossless velocity, reflection coefficient, very large sphere against a
+  flat reflector, and the velocities of ten materials against Davis & Annan's table.
+- `MethodResult.details`: method-specific figures (for GPR: frequency, velocity, attenuation, reflection coefficient,
+  two-way time, time window, vertical resolution, margin).
+
 ## [0.3.0] - 2026-11-04
 
 DOI [10.5281/zenodo.23949047](https://doi.org/10.5281/zenodo.23949047)
