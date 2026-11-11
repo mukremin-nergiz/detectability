@@ -364,9 +364,40 @@ def cases() -> list[Case]:
                     "Ten materials, from dry sand to fresh water", "m/ns", 6.0,
                     float(np.max(np.abs(model_v - ref_v) / ref_v * 100.0))))
 
+    # --- ERT (finite elements, values stored by tools/ert_reference.py) ---------------------------------------------
+    out.extend(_ert_cases())
+
     # --- independent code ---------------------------------------------------------------------------------------
     out.extend(_harmonica_cases())
     return out
+
+
+ERT_FILE = "ert_reference.json"
+
+
+def ert_reference() -> dict | None:
+    """pyGIMLi forward-model values against analytic solutions, stored so the website needs no pyGIMLi."""
+    try:
+        return json.loads(resources.files("detectability").joinpath("data", ERT_FILE).read_text())
+    except FileNotFoundError:
+        return None
+
+
+def _ert_cases() -> list[Case]:
+    ref = ert_reference()
+    if not ref:
+        return []
+    w = ref["wenner_two_layer"]
+    v = ref["pygimli"]
+    return [
+        Case("ert-halfspace", "Analytical limit", "ERT, homogeneous ground", f"pyGIMLi {v} finite elements",
+             "Apparent resistivity equals the true resistivity", "100 Ωm, 48 electrodes, dipole-dipole, 1,035 data", "",
+             1.0, ref["halfspace_error_percent"]),
+        _profile_case("ert-wenner-two-layer", "Analytical limit", "ERT, two layers, Wenner sounding",
+                      f"pyGIMLi {v} finite elements", "Image-series solution for two layers",
+                      f"{w['rho1']:g} Ωm over {w['rho2']:g} Ωm, interface at {w['h']:g} m, a = 1–20 m", "Ωm", 2.0,
+                      np.array(w["spacing"]), np.array(w["model"]), np.array(w["analytic"])),
+    ]
 
 
 def harmonica_reference() -> dict | None:

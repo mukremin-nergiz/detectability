@@ -35,7 +35,7 @@ print(report.summary())
 ```
 
 ```text
-Detectability 0.4.0: sphere in limestone
+Detectability 0.5.0: sphere in limestone
 - gravity: peak 114 µGal, noise 11.2 µGal, S/N 10.2: clearly detectable
   stations every 5 m or less, profile at least 153 m long
 - magnetic: peak 0.462 nT, noise 2 nT, S/N 0.231: not detectable
@@ -53,10 +53,13 @@ Methods: `gravity`, `magnetic` (total-field anomaly) and, on request, `gradient`
 (lower minus upper sensor, in nT over the baseline), with presets for the Bartington Grad601, Sensys FGM650, Foerster
 FEREX 4.034 and GEM GSM-19G; and, on request, `gpr`: ground-penetrating radar, the echo of the target's top against
 the system's detection limit (radar range equation), with velocity, attenuation, antenna frequency, trace spacing and
-recording window. The defaults are `gravity` and `magnetic`:
+recording window; and, on request, `ert`: electrical resistivity tomography, a 2D finite-element model of the target
+under a line of electrodes (dipole-dipole, Wenner, Schlumberger or gradient array), the change it makes to the
+apparent resistivities, and whether an inversion of noisy synthetic data recovers it. ERT needs
+[pyGIMLi](https://www.pygimli.org): `pip install "detectability[ert]"`. The defaults are `gravity` and `magnetic`:
 
 ```python
-evaluate(target, survey, methods=["gravity", "magnetic", "gradient", "gpr"])
+evaluate(target, survey, methods=["gravity", "magnetic", "gradient", "gpr", "ert"])
 ```
 
 ## Modules
@@ -67,6 +70,7 @@ evaluate(target, survey, methods=["gravity", "magnetic", "gradient", "gpr"])
 | `gravity` | sphere, horizontal cylinder, right rectangular prism (Nagy; Plouff) and its gradient tensor, vertical cylinder (exact, by a rim integral) and its gradient tensor, vertical step, dyke, 2D polygon (Talwani; Won & Bevis) |
 | `magnetics` | total-field anomaly: sphere, horizontal cylinder, prism, vertical cylinder, 2D polygon, dyke (any dip), vertical contact; induced and remanent magnetisation (a gradiometer reading is the difference at two sensor heights) |
 | `gpr` | ground-penetrating radar: exact velocity and attenuation of a lossy medium, normal-incidence reflection coefficient, target-size factor (geometric optics, Rayleigh regime, Fresnel zone), echo against system performance; typical permittivity and conductivity (Davis & Annan 1989) |
+| `ert` | electrical resistivity tomography with pyGIMLi (optional): electrode layout, 2D finite-element forward model, inversion and recovery check; typical resistivities (Loke 1999, after Keller & Frischknecht 1966) |
 | `igrf` | IGRF-14 main field from location and date, from the official IAGA coefficients |
 | `rocks` | typical densities and magnetic susceptibilities with their ranges (Telford et al. 1990) |
 | `detect` | instrument presets with their sources (gravimeters, magnetometers, gradiometers), field noise, signal-to-noise ratio, verdict, station spacing, profile length |
@@ -111,6 +115,8 @@ python tools/harmonica_reference.py --check
 | Analytical limit | GPR, reflection coefficient | (√ε1 − √ε2)/(√ε1 + √ε2) for lossless media | 0.0e+00 % | 1.0e-10 % |
 | Analytical limit | GPR, very large sphere | Flat reflector at the same range | 5.0e-06 % | 1.0e-04 % |
 | Published values | GPR, velocity of common materials | Davis & Annan (1989) table velocities (rounded to 0.01 m/ns) | 4.92 % | 6 % |
+| Analytical limit | ERT, homogeneous ground | Apparent resistivity equals the true resistivity | 0.297 % | 1 % |
+| Analytical limit | ERT, two layers, Wenner sounding | Image-series solution for two layers | 0.144 % | 2 % |
 | Independent code | Prism, gravity | Harmonica 0.7.0 prism_gravity | 3.0e-12 % | 1.0e-08 % |
 | Independent code | Prism, magnetic | Harmonica 0.7.0 prism_magnetic | 4.8e-13 % | 1.0e-08 % |
 | Independent code | Sphere, gravity | Harmonica 0.7.0 point_gravity | 3.9e-14 % | 1.0e-10 % |
@@ -138,7 +144,7 @@ field noise (0.5 nT) is an assumption, not a published figure: soil, heading and
 
 See [CITATION.cff](https://github.com/mukremin-nergiz/detectability/blob/main/CITATION.cff), or:
 
-> Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.4.0) [Computer software].
+> Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.5.0) [Computer software].
 > Zenodo. https://doi.org/10.5281/zenodo.23931815
 
 The DOI above always resolves to the latest version; each release also has its own DOI on Zenodo. Changes between

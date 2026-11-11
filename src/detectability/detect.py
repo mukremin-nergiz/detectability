@@ -76,7 +76,7 @@ DEFAULT_FIELD_NOISE_NT = 2.0     # quiet rural site after diurnal correction; ur
 # by less than about 0.5 nT over 1 m); change it for the site.
 DEFAULT_FIELD_NOISE_GRADIENT_NT = 0.5
 
-UNITS = {"gravity": "µGal", "magnetic": "nT", "gradient": "nT", "gpr": "× detection limit"}
+UNITS = {"gravity": "µGal", "magnetic": "nT", "gradient": "nT", "gpr": "× detection limit", "ert": "%"}
 
 
 def effective_noise(instrument: float, field_noise: float) -> float:

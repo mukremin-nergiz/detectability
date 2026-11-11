@@ -35,3 +35,16 @@ jobs:
       - run: pip install -e ".[test,validation]"
       - run: python tools/harmonica_reference.py --check
       - run: pytest -q tests/test_validation.py
+
+  ert:
+    # Installs pyGIMLi, recomputes the stored ERT reference values and runs the ERT tests with it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e ".[test,ert]"
+      - run: python tools/ert_reference.py --check
+      - run: pytest -q tests/test_ert.py tests/test_ert_pygimli.py tests/test_validation.py

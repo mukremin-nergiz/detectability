@@ -4,6 +4,26 @@ All notable changes to Detectability. The format follows [Keep a Changelog](http
 and the project uses [semantic versioning](https://semver.org/). Each release is archived on Zenodo with its own DOI;
 the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.23931815) always resolves to the latest.
 
+## [0.5.0] - 2026-11-11
+
+### Added
+- Electrical resistivity tomography: a new method, `ert`, and module `detectability.ert` (optional dependency pyGIMLi,
+  `pip install "detectability[ert]"`). Electrodes centred over the target (survey fields `ert_array`: dipole-dipole,
+  Wenner, Schlumberger or gradient; `ert_electrodes`, default 48; `ert_spacing`, default a spread about six times the
+  depth to reach; `ert_noise`, default 3 %). The apparent resistivities with and without the target, on the same
+  finite-element mesh, give the data anomaly and S/N; with `ert_invert` (default on) noisy synthetic data are inverted
+  and the result says whether the target is recovered (a detectable verdict is lowered to marginal if not). Typical
+  resistivities from Loke (1999, Table 1, after Keller & Frischknecht 1966); target fields `resistivity` and
+  `host_resistivity` override them. Without pyGIMLi the method is reported as not available, or computed by an ERT
+  service if `DETECTABILITY_ERT_URL` is set.
+- Validation rows: pyGIMLi's apparent resistivity over homogeneous ground, and a two-layer Wenner sounding against the
+  image-series solution; the values are stored (`data/ert_reference.json`, `tools/ert_reference.py --check`) and CI
+  recomputes them in a separate job with pyGIMLi.
+
+### Fixed
+- The reproduction script wrote booleans as JSON (`true`); it now writes Python (`True`) and leaves out the settings of
+  methods that were not asked for.
+
 ## [0.4.0] - 2026-11-11
 
 DOI [10.5281/zenodo.24134972](https://doi.org/10.5281/zenodo.24134972)
@@ -100,6 +120,7 @@ DOI [10.5281/zenodo.23931816](https://doi.org/10.5281/zenodo.23931816)
   sphere, horizontal cylinder, prism, vertical cylinder, 2D polygon, dyke of any dip, vertical contact.
 - Validation module and tests against independent results; CI on Python 3.10–3.13.
 
+[0.5.0]: https://github.com/mukremin-nergiz/detectability/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/mukremin-nergiz/detectability/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mukremin-nergiz/detectability/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/mukremin-nergiz/detectability/compare/v0.2.0...v0.2.1

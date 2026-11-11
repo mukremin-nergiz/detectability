@@ -13,14 +13,16 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import re
 from dataclasses import asdict, dataclass, field, fields, replace
 
 import numpy as np
 
-from . import __version__, detect, gpr, gravity, igrf, magnetics, rocks
+from . import __version__, detect, ert, gpr, gravity, igrf, magnetics, rocks
 from .constants import SI_TO_UGAL
 
-METHODS = ("gravity", "magnetic", "gradient", "gpr")   # gradient: magnetic vertical gradient; gpr: ground-penetrating radar
+METHODS = ("gravity", "magnetic", "gradient", "gpr", "ert")   # gradient: magnetic vertical gradient; gpr: ground-penetrating
+# radar; ert: electrical resistivity tomography (needs pyGIMLi or an ERT service)
 DEFAULT_METHODS = ("gravity", "magnetic")
 
 SHAPES: dict[str, str] = {
@@ -54,6 +56,8 @@ class Target:
     conductivity: float | None = None              # mS/m, of the target (GPR)
     host_permittivity: float | None = None         # relative, of the host (GPR)
     host_conductivity: float | None = None         # mS/m, of the host (GPR)
+    resistivity: float | None = None               # ohm m, of the target (ERT); overrides the material table
+    host_resistivity: float | None = None          # ohm m, of the host (ERT)
 
     def validate(self) -> None:
         if self.shape not in SHAPES:
@@ -88,6 +92,11 @@ class Survey:
     date: str | None = None               # ISO date of the survey; default: today
     gpr_frequency: float | None = None    # MHz, antenna centre frequency; default: from the target depth
     gpr_system_performance: float = gpr.DEFAULT_SYSTEM_PERFORMANCE_DB   # dB, largest two-way loss the system records
+    ert_array: str = ert.DEFAULT_ARRAY    # dipole-dipole, wenner, schlumberger or gradient
+    ert_electrodes: int = ert.DEFAULT_ELECTRODES
+    ert_spacing: float | None = None      # m between electrodes; default: spread about six times the target depth
+    ert_noise: float = ert.DEFAULT_NOISE_PERCENT   # % of each apparent resistivity
+    ert_invert: bool = True               # also invert noisy synthetic data to see whether the target is recovered
     field_total: float | None = None      # nT; main field given directly instead of IGRF (all three together)
     field_inclination: float | None = None
     field_declination: float | None = None
@@ -157,10 +166,17 @@ class Report:
         if target.get("shape") != "dyke":
             target.pop("dip", None)
         survey = {k: v for k, v in self.survey.items() if v is not None}
+        for prefix, method in (("gpr_", "gpr"), ("ert_", "ert")):   # settings of methods not asked for add nothing
+            if method not in self.methods:
+                survey = {k: v for k, v in survey.items() if not k.startswith(prefix)}
+
+        def literal(d):  # JSON text, but Python booleans
+            return re.sub(r"(?<=: )(true|false)(?=,?\n)", lambda m: m.group(1).capitalize(),
+                          json.dumps(d, indent=4, ensure_ascii=False))
         return SCRIPT.format(
             version=self.version,
-            target=json.dumps(target, indent=4, ensure_ascii=False),
-            survey=json.dumps(survey, indent=4, ensure_ascii=False),
+            target=literal(target),
+            survey=literal(survey),
             methods=json.dumps(self.methods),
         )
 
@@ -379,6 +395,28 @@ def _gpr(t: Target, s: Survey, x) -> MethodResult:
                         assessment=a_, details=details)
 
 
+def _ert(t: Target, s: Survey) -> MethodResult:
+    """Electrical resistivity tomography: locally with pyGIMLi, else through DETECTABILITY_ERT_URL, else not available."""
+    import os
+    try:
+        if ert.available():
+            d = ert.run(t, s)
+        elif os.environ.get("DETECTABILITY_ERT_URL"):
+            try:
+                d = ert.remote(asdict(t), asdict(s), os.environ["DETECTABILITY_ERT_URL"])
+            except Exception as e:  # the service is down or too slow: say so instead of failing the whole report
+                return MethodResult("ert", False, f"the ERT service did not answer ({type(e).__name__}); try again later")
+            if not d.get("available", False):
+                return MethodResult("ert", False, d.get("reason", "the ERT service could not compute this target"))
+        else:
+            return MethodResult("ert", False, 'needs pyGIMLi: pip install "detectability[ert]"')
+    except KeyError as e:
+        return MethodResult("ert", False, str(e.args[0]) + " (give resistivity and host_resistivity directly)")
+    a = d.pop("assessment")
+    d["assessment"] = detect.Assessment(**a)
+    return MethodResult(**d)
+
+
 def evaluate(target, survey=None, methods=DEFAULT_METHODS) -> Report:
     """Model ``target`` (a ``Target`` or dict) for each method and assess it for ``survey`` (a ``Survey`` or dict)."""
     t, s = _as(Target, target), _as(Survey, survey)
@@ -395,6 +433,9 @@ def evaluate(target, survey=None, methods=DEFAULT_METHODS) -> Report:
     for method in methods:
         if method == "gpr":
             results.append(_gpr(t, s, x))
+            continue
+        if method == "ert":
+            results.append(_ert(t, s))
             continue
         contrast, units, problem = _contrast(t, method)
         if contrast is None:

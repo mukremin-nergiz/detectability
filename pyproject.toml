@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "detectability"
-version = "0.4.0"
+version = "0.5.0"
 description = "Pre-survey detectability, modelled and reproducible: forward-modelled gravity and magnetic responses, station spacing and a detectability verdict for near-surface targets."
 readme = "README.md"
 keywords = ["geophysics", "gravity", "magnetics", "survey design", "near-surface", "forward modelling", "IGRF"]
@@ -38,6 +38,8 @@ Citation = "https://doi.org/10.5281/zenodo.23931815"
 test = ["pytest>=7"]
 # Recomputes the "Independent code" reference values (tools/harmonica_reference.py); not needed to use the library.
 validation = ["harmonica==0.7.0"]
+# Electrical resistivity tomography (method "ert"): finite elements and inversion with pyGIMLi.
+ert = ["pygimli>=1.5"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
