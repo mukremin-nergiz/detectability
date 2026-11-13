@@ -4,6 +4,32 @@ All notable changes to Detectability. The format follows [Keep a Changelog](http
 and the project uses [semantic versioning](https://semver.org/). Each release is archived on Zenodo with its own DOI;
 the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.23931815) always resolves to the latest.
 
+## [0.7.0] - 2026-11-14
+
+### Added
+- Remanent magnetisation of the target in `evaluate()` and `depth_limit()`, for the `magnetic` and `gradient`
+  methods. **The default is unchanged: with nothing given, the magnetisation is induced only and every earlier result
+  stays as it was.** Two ways to give it, as target fields:
+  - a vector: `remanence` (A/m), `remanence_inclination` and `remanence_declination` (degrees), all three together,
+    added to the induced magnetisation;
+  - a Koenigsberger ratio: `koenigsberger_ratio` (Q, remanent over induced). Q is applied to the magnetisation induced
+    by the susceptibility contrast and taken along the present field, so the total is (1 + Q) times the induced one.
+    That is the textbook ratio where the host's magnetisation is negligible (steel in soil), not in a magnetic host
+    rock, and the direction is the optimistic case: a remanence pointing otherwise gives less, and against the field
+    it partly cancels the induced part (give it as a vector for another direction).
+  No material in the tables has a remanence or a Q of its own, and remanence of the host is not modelled. Every
+  result's assumptions say which case it is, and the reproduction script carries the values that were used.
+- Validation rows for remanence: a sphere with induced and remanent magnetisation in different directions against an
+  independent code (Harmonica `dipole_magnetic`, 4e-14 %); a remanence at right angles to the field against the
+  closed-form dipole field; and a vertical remanence against the vertical derivative of the gravity cylinder
+  (Poisson's relation: a cross-check with this library's own gravity code, not an independent one).
+
+### Changed
+- The vacuum permeability in `detectability.magnetics` is the CODATA 2018 value (1.25663706212e-6 H/m), as in
+  `detectability.gpr`, instead of 4π × 10⁻⁷. The two differ by 5.4e-10. Induced anomalies do not depend on it; a
+  remanent magnetisation given in A/m does, and the comparison with Harmonica showed it (9e-8 % before, 4e-14 % after).
+- The ERT service is sent only the target fields ERT uses, and only those that were given.
+
 ## [0.6.1] - 2026-11-14
 
 DOI [10.5281/zenodo.24209492](https://doi.org/10.5281/zenodo.24209492)

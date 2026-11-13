@@ -35,7 +35,7 @@ print(report.summary())
 ```
 
 ```text
-Detectability 0.6.1: sphere in limestone
+Detectability 0.7.0: sphere in limestone
 - gravity: peak 114 µGal, noise 11.2 µGal, S/N 10.2: clearly detectable
   stations every 5 m or less, profile at least 153 m long
 - magnetic: peak 0.462 nT, noise 2 nT, S/N 0.231: not detectable
@@ -158,7 +158,10 @@ pytest
 ## Limitations
 
 Flat topography, a homogeneous host and no regional trend; 2D targets are infinitely long along strike; the profile
-crosses the centre of the target; self-demagnetisation is neglected. Results are expectations under these assumptions,
+crosses the centre of the target; self-demagnetisation is neglected. Magnetisation is induced only unless a remanent
+magnetisation is given, as a vector (`remanence` in A/m, `remanence_inclination`, `remanence_declination`) or as a
+Koenigsberger ratio (`koenigsberger_ratio`, taken along the present field: the optimistic case); no material has a
+value of its own, and remanence of the host is not modelled. Results are expectations under these assumptions,
 not guarantees. Instrument presets come from manufacturers' data sheets (`detect.INSTRUMENTS` lists each figure and its
 source); field noise, which usually dominates, is a stated assumption that you can change. For gradiometers the default
 field noise (0.5 nT) is an assumption, not a published figure: soil, heading and walking noise depend on the site.
@@ -167,7 +170,7 @@ field noise (0.5 nT) is an assumption, not a published figure: soil, heading and
 
 See [CITATION.cff](https://github.com/mukremin-nergiz/detectability/blob/main/CITATION.cff), or:
 
-> Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.6.1) [Computer software].
+> Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.7.0) [Computer software].
 > Zenodo. https://doi.org/10.5281/zenodo.23931815
 
 The DOI above always resolves to the latest version; each release also has its own DOI on Zenodo. Changes between
