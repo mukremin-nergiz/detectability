@@ -6,6 +6,8 @@ the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.2393181
 
 ## [0.6.0] - 2026-11-13
 
+DOI [10.5281/zenodo.24200875](https://doi.org/10.5281/zenodo.24200875)
+
 ### Added
 - `depth_limit()`: the inverse of a detectability assessment. Instead of "can this method see the target at this
   depth?", it answers "how deep can the target be before the method loses it?" — the question a survey plan turns on.
