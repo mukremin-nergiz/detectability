@@ -35,7 +35,7 @@ print(report.summary())
 ```
 
 ```text
-Detectability 0.5.0: sphere in limestone
+Detectability 0.6.0: sphere in limestone
 - gravity: peak 114 µGal, noise 11.2 µGal, S/N 10.2: clearly detectable
   stations every 5 m or less, profile at least 153 m long
 - magnetic: peak 0.462 nT, noise 2 nT, S/N 0.231: not detectable
@@ -44,6 +44,29 @@ Recommended method: gravity
 
 `report.script()` returns a standalone script that recomputes the report; `report.to_dict()` gives the full result,
 including the modelled profiles and the assumptions.
+
+### How deep before a method loses it?
+
+`depth_limit()` asks the inverse question — the one a survey plan turns on. Leave `depth_top` out: it is what the
+search solves for.
+
+```python
+from detectability import depth_limit
+
+for method in ("gravity", "magnetic", "gpr"):
+    print(depth_limit({"shape": "sphere", "size": 20, "material": "air", "host": "limestone"},
+                      {"latitude": 39.75, "longitude": 37.02, "date": "2026-07-01"}, method=method))
+```
+
+```text
+gravity: detectable (S/N >= 5) down to 25.7 m
+magnetic: never reaches S/N 5; S/N 2.88 even at 0.5 m
+gpr: detectable (S/N >= 5) down to 25.2 m
+```
+
+Pass `threshold=detect.MARGINAL` for the lower threshold, and `search=(shallow, deep)` to bound the sweep.
+Sweep the target size and you have a detection-limit chart; the website draws one at
+[/limits](https://detectability.mukreminnergiz.com/limits).
 
 Target shapes: `sphere`, `horizontal_cylinder`, `vertical_cylinder`, `prism`, `dyke` (any dip) and `contact`. The main
 geomagnetic field comes from IGRF-14 for the survey location and date. Typical densities and susceptibilities are built

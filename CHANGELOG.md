@@ -4,6 +4,20 @@ All notable changes to Detectability. The format follows [Keep a Changelog](http
 and the project uses [semantic versioning](https://semver.org/). Each release is archived on Zenodo with its own DOI;
 the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.23931815) always resolves to the latest.
 
+## [0.6.0] - 2026-11-13
+
+### Added
+- `depth_limit()`: the inverse of a detectability assessment. Instead of "can this method see the target at this
+  depth?", it answers "how deep can the target be before the method loses it?" — the question a survey plan turns on.
+  New module `detectability.limits`, exported as `depth_limit` and `Limit`.
+  `depth_top` on the target is ignored and may be left out; where the shape needs a `depth_bottom`, the body keeps its
+  thickness as it moves down. `threshold` defaults to the clearly-detectable signal-to-noise and takes
+  `detect.MARGINAL` for the lower one; `search`, `steps` and `refine` control the sweep.
+  A coarse geometric scan brackets the **shallowest** crossing of the threshold and a bisection refines it, so a
+  response that steps rather than falls smoothly with depth — as GPR does when the antenna frequency is left to the
+  default and chosen from the depth — still gives the conservative answer. The result says when a method never
+  reaches the threshold at all, and reports the signal-to-noise at the shallowest depth searched for context.
+
 ## [0.5.0] - 2026-11-11
 
 DOI [10.5281/zenodo.24136298](https://doi.org/10.5281/zenodo.24136298)
