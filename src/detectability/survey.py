@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import math
+import numbers
 import re
-from dataclasses import asdict, dataclass, field, fields, replace
+from dataclasses import MISSING, asdict, dataclass, field, fields, replace
 
 import numpy as np
 
@@ -70,6 +72,19 @@ class Target:
             raise ValueError(f"{self.shape} needs depth_bottom greater than depth_top")
         if self.shape in ("sphere", "horizontal_cylinder") and self.depth_top <= 0:
             raise ValueError(f"{self.shape} must be buried: depth_top > 0")
+        if self.length is not None and self.length <= 0:
+            raise ValueError("length must be positive")
+        if self.shape == "dyke" and not 0 < self.dip < 180:
+            raise ValueError("dip must be within (0, 180) degrees")
+        for name in ("permittivity", "host_permittivity"):       # relative permittivity: 1 is a vacuum
+            if getattr(self, name) is not None and getattr(self, name) < 1:
+                raise ValueError(f"{name} is relative to a vacuum and must be 1 or more")
+        for name in ("conductivity", "host_conductivity"):
+            if getattr(self, name) is not None and getattr(self, name) < 0:
+                raise ValueError(f"{name} must be zero or positive")
+        for name in ("resistivity", "host_resistivity"):
+            if getattr(self, name) is not None and getattr(self, name) <= 0:
+                raise ValueError(f"{name} must be positive")
 
 
 @dataclass
@@ -100,6 +115,31 @@ class Survey:
     field_total: float | None = None      # nT; main field given directly instead of IGRF (all three together)
     field_inclination: float | None = None
     field_declination: float | None = None
+
+    def validate(self) -> None:
+        """Reject settings no survey can have, before they give a number that only looks like an answer."""
+        for name in ("gravity_field_noise", "gravity_instrument_noise", "magnetic_field_noise",
+                     "magnetic_instrument_noise", "gradient_field_noise", "gradient_instrument_noise"):
+            if getattr(self, name) is not None and getattr(self, name) < 0:
+                raise ValueError(f"{name} must be zero or positive")
+        for name in ("sensor_height", "gradiometer_height"):
+            if getattr(self, name) < 0:
+                raise ValueError(f"{name} is the height above ground and must be zero or positive")
+        if self.latitude is not None and not -90 <= self.latitude <= 90:
+            raise ValueError("latitude must be within [-90, 90]")
+        if self.longitude is not None and not -180 <= self.longitude <= 360:
+            raise ValueError("longitude must be within [-180, 360]")
+        if self.field_total is not None and self.field_total <= 0:
+            raise ValueError("field_total must be positive")
+        if self.field_inclination is not None and not -90 <= self.field_inclination <= 90:
+            raise ValueError("field_inclination must be within [-90, 90]")
+        if self.field_declination is not None and not -180 <= self.field_declination <= 360:
+            raise ValueError("field_declination must be within [-180, 360]")
+        if self.date is not None:
+            try:
+                _dt.date.fromisoformat(self.date)
+            except ValueError:
+                raise ValueError(f"date must be an ISO date, YYYY-MM-DD; got {self.date!r}") from None
 
 
 @dataclass
@@ -169,6 +209,12 @@ class Report:
         for prefix, method in (("gpr_", "gpr"), ("ert_", "ert")):   # settings of methods not asked for add nothing
             if method not in self.methods:
                 survey = {k: v for k, v in survey.items() if not k.startswith(prefix)}
+        # An antenna chosen from the depth is still a choice the script has to carry: every other setting is written
+        # out, and leaving this one implicit would let the script answer differently if the rule ever changed.
+        if "gpr" in self.methods and survey.get("gpr_frequency") is None:
+            chosen = (self.result("gpr").details or {}).get("frequency_mhz")
+            if chosen:
+                survey["gpr_frequency"] = chosen
 
         def literal(d):  # JSON text, but Python booleans
             return re.sub(r"(?<=: )(true|false)(?=,?\n)", lambda m: m.group(1).capitalize(),
@@ -215,16 +261,48 @@ if plt:
 '''
 
 
+def _check_types(obj) -> None:
+    """Every field holds the kind of value it is declared with: a wrong type is named here, by field, instead of
+    surfacing later as a comparison or arithmetic error from somewhere inside a model."""
+    for f in fields(obj):
+        v, declared = getattr(obj, f.name), str(f.type)
+        if v is None:
+            if "None" in declared:
+                continue
+            raise ValueError(f"{f.name} must be given")
+        if declared.startswith("str"):
+            if not isinstance(v, str):
+                raise ValueError(f"{f.name} must be text, got {v!r}")
+        elif declared.startswith("bool"):
+            if not isinstance(v, bool):
+                raise ValueError(f"{f.name} must be true or false, got {v!r}")
+        elif isinstance(v, bool) or not isinstance(v, numbers.Real):
+            raise ValueError(f"{f.name} must be a number, got {v!r}")
+        elif not math.isfinite(v):
+            raise ValueError(f"{f.name} must be a finite number")
+
+
 def _as(cls, value):
+    what = cls.__name__.lower()
     if value is None:
         return cls() if cls is Survey else None
     if isinstance(value, cls):
-        return replace(value)
-    known = {f.name for f in fields(cls)}
-    unknown = set(value) - known
-    if unknown:
-        raise ValueError(f"unknown {cls.__name__.lower()} field(s): {', '.join(sorted(unknown))}")
-    return cls(**value)
+        obj = replace(value)
+    else:
+        if not isinstance(value, dict):
+            raise ValueError(f"{what} must be a dictionary of fields or a {cls.__name__}, got {type(value).__name__}")
+        known = {f.name for f in fields(cls)}
+        unknown = sorted(str(k) for k in value if k not in known)
+        if unknown:
+            raise ValueError(f"unknown {what} field(s): {', '.join(unknown)}")
+        try:
+            obj = cls(**value)
+        except TypeError:       # a field without a default was left out
+            needed = [f.name for f in fields(cls) if f.name not in value and "None" not in str(f.type)
+                      and f.default is MISSING and f.default_factory is MISSING]
+            raise ValueError(f"{what} needs {' and '.join(needed) or 'more fields'}") from None
+    _check_types(obj)
+    return obj
 
 
 def _profile(t: Target) -> np.ndarray:
@@ -385,7 +463,11 @@ def _gpr(t: Target, s: Survey, x) -> MethodResult:
                               f"wavelength, {nyquist:.3g} m): it shows as a diffraction hyperbola, its size is not resolved.")
     if t.shape in TWO_D:
         a_.assumptions.append("2D target: infinitely long along strike, at right angles to the profile.")
-    details = {"frequency_mhz": float(f_mhz), "velocity_m_per_ns": float(v / 1e9), "attenuation_db_per_m": alpha,
+    details = {"frequency_mhz": float(f_mhz),
+               # Whether the antenna was asked for or worked out from the depth: a reader of the numbers alone,
+               # an assistant or another program, should not have to read the prose to find out.
+               "frequency_source": "given" if s.gpr_frequency else "auto",
+               "velocity_m_per_ns": float(v / 1e9), "attenuation_db_per_m": alpha,
                "wavelength_m": float(lam), "reflection_coefficient": float(abs(R)), "two_way_time_ns": float(t0),
                "time_window_ns": float(window), "vertical_resolution_m": float(nyquist),
                "margin_db": float(20 * np.log10(a_.snr)) if a_.snr > 0 else None,
@@ -421,8 +503,11 @@ def evaluate(target, survey=None, methods=DEFAULT_METHODS) -> Report:
     """Model ``target`` (a ``Target`` or dict) for each method and assess it for ``survey`` (a ``Survey`` or dict)."""
     t, s = _as(Target, target), _as(Survey, survey)
     t.validate()
+    s.validate()
     if s.date is None:
         s.date = _dt.date.today().isoformat()
+    if isinstance(methods, str) or not all(isinstance(m, str) for m in methods):
+        raise ValueError(f"methods must be a list of method names, chosen from {', '.join(METHODS)}")
     methods = list(methods)
     unknown = set(methods) - set(METHODS)
     if unknown:
@@ -483,6 +568,8 @@ def evaluate(target, survey=None, methods=DEFAULT_METHODS) -> Report:
                 anomaly = _gradient(t, x, contrast, amb, s, baseline)
                 res = MethodResult(method, True, contrast=contrast, contrast_units=units, instrument=s.gradiometer,
                                    instrument_noise=inst, field_noise=s.gradient_field_noise, main_field=info)
+        if noise <= 0:      # signal over nothing is not a signal-to-noise ratio
+            raise ValueError(f"the effective {method} noise is zero: give an instrument or field noise above zero")
         a = detect.assess(x, anomaly, noise, depth=t.depth_top, method=method)
         preset = detect.INSTRUMENTS.get(res.instrument)
         overridden = {"gravity": s.gravity_instrument_noise, "magnetic": s.magnetic_instrument_noise,

@@ -4,6 +4,7 @@ import pytest
 from detectability import evaluate, gpr
 
 SITE = {"latitude": 39.75, "longitude": 37.02, "date": "2026-07-01"}
+CAVITY = {"shape": "sphere", "size": 2.0, "material": "air", "host": "dry sand"}
 
 
 def test_attenuation_within_published_ranges():
@@ -100,3 +101,41 @@ def test_script_reproduces_gpr():
     ns = {}
     exec(rep.script().replace("print(report.summary())", "").split("# Optional plot")[0], ns)
     assert ns["report"].result("gpr").assessment.snr == pytest.approx(rep.result("gpr").assessment.snr)
+
+
+def test_the_script_pins_the_antenna_it_actually_used():
+    """Every other setting is written out; an antenna worked out from the depth has to be written out too.
+
+    Otherwise the script's answer depends on a rule that lives in the library, and a later release that changed the
+    rule would quietly give a different result from the one the script was made to reproduce.
+    """
+    report = evaluate({**CAVITY, "depth_top": 1.2}, SITE, methods=["gpr"])
+    used = report.result("gpr").details["frequency_mhz"]
+    assert report.result("gpr").details["frequency_source"] == "auto"
+    assert f'"gpr_frequency": {used}' in report.script()
+
+
+def test_an_antenna_that_was_asked_for_is_marked_as_given():
+    report = evaluate({**CAVITY, "depth_top": 1.2}, {**SITE, "gpr_frequency": 250}, methods=["gpr"])
+    assert report.result("gpr").details["frequency_source"] == "given"
+    assert report.result("gpr").details["frequency_mhz"] == 250
+
+
+def test_the_pinned_script_reproduces_the_same_answer():
+    """Run what the script would run, and it must land on the same signal-to-noise."""
+    report = evaluate({**CAVITY, "depth_top": 1.2}, SITE, methods=["gpr"])
+    survey = {**SITE, "gpr_frequency": report.result("gpr").details["frequency_mhz"]}
+    again = evaluate({**CAVITY, "depth_top": 1.2}, survey, methods=["gpr"])
+    assert again.result("gpr").assessment.snr == report.result("gpr").assessment.snr
+
+
+def test_attenuation_is_frequency_independent_in_this_model():
+    """The host's properties are taken as frequency-independent, so attenuation is too, in the low-loss limit.
+
+    It is worth pinning: it means the depth limit is set by the ground rather than by the antenna, which is why the
+    page says so, and it is also the model's weakest point against real soils, which lose more at high frequency.
+    """
+    target = {"shape": "sphere", "depth_top": 15, "size": 20, "material": "air", "host": "limestone"}
+    att = [evaluate(target, {**SITE, "gpr_frequency": f}, methods=["gpr"]).result("gpr").details["attenuation_db_per_m"]
+           for f in (25, 100, 400, 1000)]
+    assert max(att) - min(att) < 0.01 * max(att)

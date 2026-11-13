@@ -16,9 +16,10 @@ antenna frequency, when left to the default, is chosen from the target depth, so
 geometric scan brackets the **shallowest** crossing of the threshold and a bisection refines it. The shallowest
 crossing is the honest answer — beyond it the method can no longer be relied on, whatever happens deeper.
 
-Each limit costs ``steps`` plus about twenty forward models. That is milliseconds for gravity, magnetics and GPR.
-For ERT, where a single forward model inverts a mesh and takes tens of seconds, a limit takes tens of minutes; pass a
-narrow ``search`` range and a small ``steps`` if you ask for one at all.
+Each limit costs ``steps`` plus about twenty evaluations. That is milliseconds for gravity, magnetics and GPR.
+An ERT evaluation runs a finite-element forward model (a second or two) and, unless the survey sets ``ert_invert`` to
+False, an inversion of the noisy data (tens of seconds), so a limit takes about a minute without the inversion and
+tens of minutes with it; pass a narrow ``search`` range and a small ``steps``.
 """
 
 from __future__ import annotations

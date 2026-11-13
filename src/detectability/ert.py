@@ -31,9 +31,9 @@ from dataclasses import dataclass
 import numpy as np
 
 # Resistivity ranges (ohm m), from Loke (1999), "Electrical imaging surveys for environmental and engineering
-# studies", Table 1, after Keller & Frischknecht (1966) and Daniels & Alberty (1966). "Typical" is the geometric
-# middle of the range. Air (a void) is effectively an insulator; it is modelled as 10^6 ohm m, beyond which the
-# anomaly no longer changes. Metal: iron, 9.074e-8 ohm m.
+# studies", Table 1, after Keller & Frischknecht (1966) and Daniels & Alberty (1966); ranges checked against that
+# table on 14 Nov 2026. "Typical" is the geometric middle of the range. Air (a void) is effectively an insulator; it
+# is modelled as 10^6 ohm m, beyond which the anomaly no longer changes. Metal: iron, 9.074e-8 ohm m.
 RESISTIVITY: dict[str, tuple[float, float, float]] = {
     "air": (1e6, 1e6, 1e6),
     "granite": (7.07e4, 5e3, 1e6),

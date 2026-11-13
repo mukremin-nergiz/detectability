@@ -38,7 +38,9 @@ NEPER_TO_DB = 20.0 / np.log(10.0)
 # Typical relative permittivity and conductivity (mS/m), each as (typical, low, high). Ranges from the table of
 # Davis & Annan (1989, Geophysical Prospecting 37, 531-551), as reproduced in USACE EM 1110-1-1802 (1995) Table 4-3;
 # "typical" is the middle of the permittivity range and the geometric middle of the conductivity range. The same table
-# gives velocity and attenuation, which the tests check against these values. Verify against the source before release.
+# gives velocity and attenuation, which the tests check against these values. Checked on 14 Nov 2026 against Table 4-3
+# of the USACE manual (chapter 4, page 4-52): all thirteen rows and the ten velocities used in the validation agree.
+# The Davis & Annan paper itself has not been compared; the manual's table is what these numbers rest on.
 PERMITTIVITY: dict[str, tuple[float, float, float]] = {
     "air": (1.0, 1.0, 1.0),
     "distilled water": (80.0, 80.0, 80.0),
@@ -108,7 +110,12 @@ class Medium:
         return self.velocity(f) / f
 
 
+# "water" in the density table is fresh water here (a flooded cavity); sea water has its own row.
+ALIASES = {"water": "fresh water"}
+
+
 def medium(name: str) -> Medium:
+    name = name if name in PERMITTIVITY else ALIASES.get(name, name)
     try:
         return Medium(PERMITTIVITY[name][0], CONDUCTIVITY_MS_M[name][0] / 1000.0)
     except KeyError:

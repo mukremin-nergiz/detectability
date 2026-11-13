@@ -3,7 +3,8 @@
 
 Sources: Telford, Geldart & Sheriff (1990), Applied Geophysics, 2nd ed., Table 6.1 (densities) and Table 3.3
 (susceptibilities), rounded. Values vary widely with porosity, saturation, weathering and magnetite content; use site data
-when available. Verify against the source before the v1 release.
+when available. Not yet compared with the book itself (14 Nov 2026: no copy to hand); the susceptibility ranges of
+eleven rocks agree with a course table of unstated origin, which is corroboration, not verification.
 """
 
 DENSITY_G_CM3: dict[str, tuple[float, float, float]] = {
@@ -51,7 +52,13 @@ SUSCEPTIBILITY_SI: dict[str, tuple[float, float, float]] = {
 }
 
 
+# The radar and resistivity tables tell fresh from distilled water; for density and susceptibility they are the same
+# water as the "water" row above, so the names resolve to it instead of leaving the method unassessed.
+ALIASES = {"fresh water": "water", "distilled water": "water"}
+
+
 def _typical(table: dict, name: str, what: str) -> float:
+    name = name if name in table else ALIASES.get(name, name)
     try:
         return table[name][0]
     except KeyError:
