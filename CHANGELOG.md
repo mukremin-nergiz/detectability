@@ -6,6 +6,8 @@ the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.2393181
 
 ## [0.6.1] - 2026-11-14
 
+DOI [10.5281/zenodo.24209492](https://doi.org/10.5281/zenodo.24209492)
+
 ### Added
 - GPR: the reproduction script now writes the antenna frequency that was used when it was chosen from the target
   depth (`gpr_frequency`), so the script no longer depends on the depth-frequency rule staying the same; the result's
