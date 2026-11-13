@@ -188,3 +188,154 @@ def test_water_is_the_same_water_under_each_table_s_name():
         a, b = (by_name[n].result(method) for n in ("water", "fresh water"))
         assert a.available and b.available
         assert a.assessment.snr == pytest.approx(b.assessment.snr)
+
+
+# --- remanent magnetisation ------------------------------------------------------------------------------------------
+
+import numpy as np  # noqa: E402
+
+from detectability.magnetics import MU0  # noqa: E402
+
+FIELD = {"field_total": 50000.0, "field_inclination": 60.0, "field_declination": 5.0}
+BODIES = [
+    {"shape": "sphere", "depth_top": 3, "size": 2},
+    {"shape": "horizontal_cylinder", "depth_top": 3, "size": 2},
+    {"shape": "vertical_cylinder", "depth_top": 1, "depth_bottom": 20, "size": 0.5},
+    {"shape": "prism", "depth_top": 2, "depth_bottom": 4, "size": 3, "length": 5},
+    {"shape": "dyke", "depth_top": 2, "depth_bottom": 30, "size": 4, "dip": 70},
+    {"shape": "contact", "depth_top": 5, "depth_bottom": 40},
+]
+
+
+@pytest.mark.parametrize("body", BODIES, ids=[b["shape"] for b in BODIES])
+@pytest.mark.parametrize("method", ["magnetic", "gradient"])
+def test_remanence_along_the_field_is_the_same_as_more_susceptibility(body, method):
+    """A remanent magnetisation of d_chi * F / mu0 along the field is, by definition, what d_chi more susceptibility
+    would induce. The two routes share no code above the model functions, so every shape must agree."""
+    chi, extra = 0.02, 0.03
+    intensity = extra * FIELD["field_total"] * 1e-9 / MU0
+    with_remanence = evaluate({**body, "susceptibility_contrast": chi, "remanence": intensity,
+                               "remanence_inclination": 60.0, "remanence_declination": 5.0}, FIELD, methods=[method])
+    with_more_chi = evaluate({**body, "susceptibility_contrast": chi + extra}, FIELD, methods=[method])
+    a, b = with_remanence.result(method), with_more_chi.result(method)
+    assert np.allclose(a.anomaly, b.anomaly, rtol=1e-9, atol=1e-9 * max(abs(v) for v in b.anomaly))
+
+
+def test_remanence_against_the_field_cancels_the_induced_part():
+    """The reason a default would be wrong: the same intensity can double the anomaly or remove it."""
+    chi = 0.05
+    intensity = chi * FIELD["field_total"] * 1e-9 / MU0
+    body = {**BODIES[0], "susceptibility_contrast": chi}
+    plain = evaluate(body, FIELD, methods=["magnetic"]).result("magnetic").assessment.peak
+    opposed = evaluate({**body, "remanence": intensity, "remanence_inclination": -60.0,
+                        "remanence_declination": 185.0}, FIELD, methods=["magnetic"]).result("magnetic").assessment.peak
+    aligned = evaluate({**body, "remanence": intensity, "remanence_inclination": 60.0,
+                        "remanence_declination": 5.0}, FIELD, methods=["magnetic"]).result("magnetic").assessment.peak
+    assert aligned == pytest.approx(2 * plain)
+    assert opposed < 1e-9 * plain
+
+
+def test_without_remanence_nothing_changes_and_the_result_says_so():
+    r = evaluate({**BODIES[0], "susceptibility_contrast": 0.05}, FIELD, methods=["magnetic", "gradient"])
+    for method in ("magnetic", "gradient"):
+        assert any("induced magnetisation only (no remanence given)" in a for a in r.result(method).assessment.assumptions)
+    assert "remanence" not in r.script()
+
+
+def test_a_result_with_remanence_says_what_was_given_and_the_script_carries_it():
+    target = {**BODIES[0], "susceptibility_contrast": 0.05, "remanence": 1.5, "remanence_inclination": -20.0,
+              "remanence_declination": 140.0}
+    r = evaluate(target, FIELD, methods=["magnetic"])
+    line = next(a for a in r.result("magnetic").assessment.assumptions if "remanent" in a)
+    assert "1.5 A/m" in line and "inclination -20°" in line and "declination 140°" in line
+    script = r.script()
+    assert '"remanence": 1.5' in script and '"remanence_inclination": -20.0' in script
+    ns = {}
+    exec(script.replace("print(report.summary())", "").split("# Optional plot")[0], ns)
+    assert ns["report"].result("magnetic").assessment.snr == pytest.approx(r.result("magnetic").assessment.snr)
+
+
+@pytest.mark.parametrize("extra, message", [
+    ({"remanence": 1.0}, "needs all three"),
+    ({"remanence_inclination": 30.0, "remanence_declination": 0.0}, "needs all three"),
+    ({"remanence": -1.0, "remanence_inclination": 30.0, "remanence_declination": 0.0}, "must be zero or positive"),
+    ({"remanence": 1.0, "remanence_inclination": 120.0, "remanence_declination": 0.0}, "remanence_inclination"),
+])
+def test_a_remanence_that_is_not_a_vector_is_refused(extra, message):
+    with pytest.raises(ValueError, match=message):
+        evaluate({**BODIES[0], "susceptibility_contrast": 0.05, **extra}, FIELD, methods=["magnetic"])
+
+
+def test_remanence_does_not_touch_gravity():
+    target = {"shape": "sphere", "depth_top": 15, "size": 20, "material": "air", "host": "limestone"}
+    plain = evaluate(target, FIELD, methods=["gravity"]).result("gravity").anomaly
+    with_rem = evaluate({**target, "remanence": 5.0, "remanence_inclination": 0.0, "remanence_declination": 0.0},
+                        FIELD, methods=["gravity"]).result("gravity").anomaly
+    assert plain == with_rem
+
+
+def test_the_ert_service_is_sent_only_what_ert_uses(monkeypatch):
+    """The service runs its own copy of the library; a field it does not know would be refused as unknown."""
+    from detectability import ert
+
+    seen = {}
+
+    def fake_remote(target, survey, url):
+        seen.update(target)
+        return {"method": "ert", "available": False, "reason": "stub"}
+
+    monkeypatch.setattr(ert, "available", lambda: False)
+    monkeypatch.setattr(ert, "remote", fake_remote)
+    monkeypatch.setenv("DETECTABILITY_ERT_URL", "http://127.0.0.1:9/evaluate")
+    evaluate({**BODIES[0], "material": "air", "host": "clay", "susceptibility_contrast": 0.05, "remanence": 1.0,
+              "remanence_inclination": 0.0, "remanence_declination": 0.0, "host_permittivity": 9.0,
+              "host_resistivity": 20.0}, FIELD, methods=["ert"])
+    assert set(seen) == {"shape", "depth_top", "size", "dip", "material", "host", "host_resistivity"}
+
+
+# --- the Koenigsberger ratio: the short way to say the same thing ---------------------------------------------------
+
+@pytest.mark.parametrize("body", BODIES, ids=[b["shape"] for b in BODIES])
+@pytest.mark.parametrize("chi", [0.05, -0.0003])
+def test_a_koenigsberger_ratio_multiplies_the_induced_anomaly_by_one_plus_q(body, chi):
+    """Consistency of the definition, not an independent check: Q times the induced magnetisation, along the field,
+    is (1 + Q) times the induced anomaly, whatever the sign of the contrast."""
+    q = 2.5
+    plain = evaluate({**body, "susceptibility_contrast": chi}, FIELD, methods=["magnetic", "gradient"])
+    with_q = evaluate({**body, "susceptibility_contrast": chi, "koenigsberger_ratio": q}, FIELD,
+                      methods=["magnetic", "gradient"])
+    for method in ("magnetic", "gradient"):
+        a, b = np.array(with_q.result(method).anomaly), np.array(plain.result(method).anomaly)
+        assert np.allclose(a, (1 + q) * b, rtol=1e-9, atol=1e-12 * np.max(np.abs(b)))
+
+
+def test_a_result_with_q_says_what_q_means_here():
+    r = evaluate({**BODIES[0], "susceptibility_contrast": 0.05, "koenigsberger_ratio": 4}, FIELD, methods=["magnetic"])
+    line = next(a for a in r.result("magnetic").assessment.assumptions if "Koenigsberger" in a)
+    assert "Q = 4" in line and "5 times the induced" in line
+    assert "applied to the magnetisation induced by the susceptibility contrast" in line     # what Q multiplies
+    assert "optimistic case" in line and "partly cancels" in line                            # the direction assumed
+    assert "Remanence of the host is not modelled" in line                                   # what is left out
+    script = r.script()
+    assert '"koenigsberger_ratio": 4' in script and '"remanence"' not in script
+
+
+@pytest.mark.parametrize("extra, message", [
+    ({"koenigsberger_ratio": -1}, "must be zero or positive"),
+    ({"koenigsberger_ratio": 2, "remanence": 1.0, "remanence_inclination": 0.0, "remanence_declination": 0.0},
+     "not both"),
+])
+def test_q_is_one_way_of_giving_remanence_not_a_second_one_on_top(extra, message):
+    with pytest.raises(ValueError, match=message):
+        evaluate({**BODIES[0], "susceptibility_contrast": 0.05, **extra}, FIELD, methods=["magnetic"])
+
+
+def test_no_material_comes_with_a_remanence_of_its_own():
+    """Nothing in the tables supplies a Q or a remanence: with neither given, steel or basalt is induced only."""
+    from detectability import rocks
+
+    assert not any("remanen" in name or "koenigs" in name for name in dir(rocks))
+    for material in ("basalt", "magnetite", "gabbro"):
+        r = evaluate({"shape": "sphere", "depth_top": 3, "size": 2, "material": material, "host": "sandstone"}, FIELD,
+                     methods=["magnetic"])
+        assert r.target["koenigsberger_ratio"] is None and r.target["remanence"] is None

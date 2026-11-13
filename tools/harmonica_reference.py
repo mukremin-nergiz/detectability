@@ -54,6 +54,9 @@ def compute(c: dict) -> np.ndarray:
         total, inc, dec = c["field"]
         f = unit(inc, dec)
         m = c["chi"] * total * 1e-9 / MU0 * f                                     # induced magnetisation, A/m
+        if "remanence" in c:                                                      # plus a remanent one, A/m
+            intensity, r_inc, r_dec = c["remanence"]
+            m = m + intensity * unit(r_inc, r_dec)
     if c["source"] == "prism":
         (s, n), (w, e), (top, bottom) = c["along"], c["across"], c["depth"]
         prisms = np.array([[w, e, s, n, -bottom, -top]])

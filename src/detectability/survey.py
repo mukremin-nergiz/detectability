@@ -54,6 +54,13 @@ class Target:
     host: str = "limestone"               # surrounding material
     density_contrast: float | None = None          # kg/m^3, overrides the material tables
     susceptibility_contrast: float | None = None   # SI, overrides the material tables
+    # Remanent magnetisation of the target (magnetic and gradient), added to the induced one. All three together.
+    remanence: float | None = None                 # A/m, intensity
+    remanence_inclination: float | None = None     # degrees, positive downwards
+    remanence_declination: float | None = None     # degrees east of north
+    # Or, instead of the vector: the Koenigsberger ratio Q, remanent over induced magnetisation, taken along the
+    # present field. No value is assumed for any material.
+    koenigsberger_ratio: float | None = None
     permittivity: float | None = None              # relative, of the target (GPR); overrides the material table
     conductivity: float | None = None              # mS/m, of the target (GPR)
     host_permittivity: float | None = None         # relative, of the host (GPR)
@@ -76,6 +83,24 @@ class Target:
             raise ValueError("length must be positive")
         if self.shape == "dyke" and not 0 < self.dip < 180:
             raise ValueError("dip must be within (0, 180) degrees")
+        vector = (self.remanence, self.remanence_inclination, self.remanence_declination)
+        if any(v is not None for v in vector):
+            if any(v is None for v in vector):
+                raise ValueError("a remanent magnetisation needs all three: remanence (A/m), remanence_inclination "
+                                 "and remanence_declination (degrees)")
+            if self.remanence < 0:
+                raise ValueError("remanence is an intensity and must be zero or positive; its direction is given by "
+                                 "remanence_inclination and remanence_declination")
+            if not -90 <= self.remanence_inclination <= 90:
+                raise ValueError("remanence_inclination must be within [-90, 90]")
+            if not -180 <= self.remanence_declination <= 360:
+                raise ValueError("remanence_declination must be within [-180, 360]")
+            if self.koenigsberger_ratio is not None:
+                raise ValueError("give the remanent magnetisation either as a vector (remanence, remanence_inclination, "
+                                 "remanence_declination) or as koenigsberger_ratio, not both")
+        if self.koenigsberger_ratio is not None and self.koenigsberger_ratio < 0:
+            raise ValueError("koenigsberger_ratio must be zero or positive; for a remanence pointing against the "
+                             "field, give it as a vector")
         for name in ("permittivity", "host_permittivity"):       # relative permittivity: 1 is a vacuum
             if getattr(self, name) is not None and getattr(self, name) < 1:
                 raise ValueError(f"{name} is relative to a vacuum and must be 1 or more")
@@ -345,9 +370,40 @@ def _gravity(t: Target, x, drho):
     return gravity.vertical_step(x, t.depth_top, t.depth_bottom, drho)
 
 
+def _remanence(t: Target, chi: float, amb) -> tuple[float, float, float] | None:
+    """The target's remanent magnetisation as (A/m, inclination, declination), or None when none was given.
+
+    Given as a Koenigsberger ratio Q, it is Q times the magnetisation that the susceptibility contrast induces, along
+    the present field (so it carries the sign of the contrast and the total is (1 + Q) times the induced one).
+    """
+    if t.remanence is not None:
+        return (t.remanence, t.remanence_inclination, t.remanence_declination)
+    if t.koenigsberger_ratio is not None:
+        induced = chi * amb.total / magnetics.T_TO_NT / magnetics.MU0
+        return (t.koenigsberger_ratio * induced, amb.inclination, amb.declination)
+    return None
+
+
+def _magnetisation_note(t: Target) -> str:
+    """What the magnetisation in a result is made of, for its assumptions."""
+    if t.remanence is not None:
+        return (f"induced magnetisation plus the remanent magnetisation given ({t.remanence:g} A/m, inclination "
+                f"{t.remanence_inclination:g}°, declination {t.remanence_declination:g}°); remanence of the host is "
+                "not modelled")
+    if t.koenigsberger_ratio is not None:
+        q = t.koenigsberger_ratio
+        return (f"induced magnetisation plus remanence from the Koenigsberger ratio given (Q = {q:g}, total "
+                f"{1 + q:g} times the induced). Q is applied to the magnetisation induced by the susceptibility "
+                "contrast: that is the textbook ratio where the host's magnetisation is negligible (steel in soil), "
+                "not in a magnetic host rock. The remanence is taken along the present field, which is the "
+                "optimistic case: pointing otherwise it gives less, and against the field it partly cancels the "
+                "induced part (give it as a vector for another direction). Remanence of the host is not modelled")
+    return "induced magnetisation only (no remanence given)"
+
+
 def _magnetic(t: Target, x, chi, amb, s: Survey):
     r = (t.size or 0) / 2
-    kw = dict(azimuth=s.profile_azimuth, height=s.sensor_height)
+    kw = dict(azimuth=s.profile_azimuth, height=s.sensor_height, remanence=_remanence(t, chi, amb))
     if t.shape == "sphere":
         return magnetics.sphere(x, t.depth_top + r, r, chi, amb, **kw)
     if t.shape == "horizontal_cylinder":
@@ -477,6 +533,11 @@ def _gpr(t: Target, s: Survey, x) -> MethodResult:
                         assessment=a_, details=details)
 
 
+_NOT_FOR_ERT = {"density_contrast", "susceptibility_contrast", "remanence", "remanence_inclination",
+                "remanence_declination", "koenigsberger_ratio", "permittivity", "conductivity", "host_permittivity",
+                "host_conductivity"}
+
+
 def _ert(t: Target, s: Survey) -> MethodResult:
     """Electrical resistivity tomography: locally with pyGIMLi, else through DETECTABILITY_ERT_URL, else not available."""
     import os
@@ -485,7 +546,10 @@ def _ert(t: Target, s: Survey) -> MethodResult:
             d = ert.run(t, s)
         elif os.environ.get("DETECTABILITY_ERT_URL"):
             try:
-                d = ert.remote(asdict(t), asdict(s), os.environ["DETECTABILITY_ERT_URL"])
+                # Only what ERT uses, and only what was given: the service runs its own copy of the library, and
+                # a field that copy does not know yet (a magnetic one, say) would be refused as unknown.
+                sent = {k: v for k, v in asdict(t).items() if v is not None and k not in _NOT_FOR_ERT}
+                d = ert.remote(sent, asdict(s), os.environ["DETECTABILITY_ERT_URL"])
             except Exception as e:  # the service is down or too slow: say so instead of failing the whole report
                 return MethodResult("ert", False, f"the ERT service did not answer ({type(e).__name__}); try again later")
             if not d.get("available", False):
@@ -581,12 +645,12 @@ def evaluate(target, survey=None, methods=DEFAULT_METHODS) -> Report:
             a.assumptions.append("2D target: infinitely long along strike, at right angles to the profile.")
         if method == "magnetic":
             a.assumptions.append(f"Sensor {s.sensor_height:g} m above ground; profile azimuth {s.profile_azimuth:g}°; "
-                                 "induced magnetisation only, no demagnetisation.")
+                                 f"{_magnetisation_note(t)}, no demagnetisation.")
         if method == "gradient":
             top = s.gradiometer_height + baseline
             a.assumptions.append(f"Reading: lower sensor ({s.gradiometer_height:g} m above ground) minus upper sensor "
                                  f"({top:g} m), in nT over the {baseline:g} m baseline; diurnal variation and the regional "
-                                 f"field cancel. Profile azimuth {s.profile_azimuth:g}°; induced magnetisation only.")
+                                 f"field cancel. Profile azimuth {s.profile_azimuth:g}°; {_magnetisation_note(t)}.")
         res.x, res.anomaly, res.assessment = x.round(4).tolist(), anomaly.tolist(), a
         results.append(res)
 

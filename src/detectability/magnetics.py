@@ -26,7 +26,10 @@ from dataclasses import dataclass
 
 import numpy as np
 
-MU0 = 4e-7 * np.pi
+# Vacuum permeability, H/m (CODATA 2018), the value gpr.py and Harmonica use. It was 4 pi 1e-7 here until 0.7.0, which
+# differs by 5.4e-10: induced anomalies do not depend on it (chi F / mu0 times mu0), but a remanent magnetisation given
+# in A/m does, and with the old value the comparison with Harmonica stood at 9e-8 % instead of 4e-14 %.
+MU0 = 1.25663706212e-6
 T_TO_NT = 1e9
 
 

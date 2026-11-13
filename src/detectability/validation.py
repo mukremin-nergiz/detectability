@@ -51,6 +51,9 @@ HARMONICA_CASES = {
                                  "x": (-60.0, 60.0, 121)},
     "harmonica-sphere-magnetic": {"source": "sphere", "depth": 12.0, "radius": 3.0, "chi": CHI, "field": _FIELD,
                                   "height": 0.5, "x": (-60.0, 60.0, 121)},
+    # Induced plus a remanent magnetisation pointing somewhere else entirely (up, towards the south-east).
+    "harmonica-sphere-remanence": {"source": "sphere", "depth": 12.0, "radius": 3.0, "chi": CHI, "field": _FIELD,
+                                   "height": 0.5, "remanence": (1.2, -35.0, 140.0), "x": (-60.0, 60.0, 121)},
     "harmonica-dyke-gravity": {"source": "prism", "along": (5.0, 9.0), "across": (-1e5, 1e5), "depth": (3.0, 15.0),
                                "drho": 500.0, "x": (-40.0, 40.0, 81)},
     "harmonica-dyke-magnetic": {"source": "prism", "along": (-2.0, 2.0), "across": (-1e5, 1e5), "depth": (3.0, 20.0),
@@ -258,6 +261,23 @@ def cases() -> list[Case]:
         "Radius 0.5 m, centre at 3 m, sensors 0.2 and 1.2 m above ground, at the pole", "nT", 1e-10, x, reading,
         _pole_dipole(low) - _pole_dipole(low + base)))
 
+    # remanent magnetisation at right angles to the field: horizontal moment, vertical field. The model goes through
+    # the same path as evaluate() (survey._magnetic with the target's remanence); the reference is the dipole
+    # formula written out for that one geometry, B_down = -mu0/(4 pi) * 3 m x z / r^5.
+    from .survey import _magnetic
+    x = np.linspace(-30, 30, 121)
+    depth, radius, height, rem = 5.0, 1.0, 0.5, 2.0
+    z = depth + height
+    moment = rem * 4 / 3 * np.pi * radius**3
+    crossed = Target("sphere", depth - radius, 2 * radius, remanence=rem, remanence_inclination=0.0,
+                     remanence_declination=0.0)
+    out.append(_profile_case(
+        "remanence-sphere-crossed", "Independent formula", "Sphere, remanent magnetisation across the field",
+        "Dipole model with the target's remanence, as evaluate() runs it", "Closed-form field of a horizontal dipole",
+        "Radius 1 m, centre at 5 m, 2 A/m pointing north, no induced part, sensor 0.5 m above ground, at the pole",
+        "nT", 1e-10, x, _magnetic(crossed, x, 0.0, POLE, Survey(sensor_height=height)),
+        -MU0 / (4 * np.pi) * 3 * moment * x * z / (x**2 + z**2) ** 2.5 * 1e9))
+
     # --- numerical integration -------------------------------------------------------------------------------
     x = np.linspace(-40, 40, 81)
     box = ((-3.0, 3.0), (-4.0, 4.0), (2.0, 6.0))
@@ -322,6 +342,21 @@ def cases() -> list[Case]:
         "Shaft of 6 m diameter from 2 to 30 m, at the pole", "nT", 1e-4, x,
         magnetics.vertical_cylinder(x, 2.0, 30.0, 3.0, CHI, POLE),
         _poisson(_dgz_dz(lambda a, b: gravity.vertical_cylinder(x, a, b, 3.0, 1000.0), 2.0, 30.0), CHI, POLE, 1000.0)))
+
+    # Remanence through the same relation: a vertical remanent magnetisation in a vertical field, no induced part.
+    # The reference is this library's own gravity code, so it cross-checks the magnetic code; it is not an
+    # independent code (that is the Harmonica row).
+    x = np.linspace(-40, 40, 81)
+    rem = 3.0
+    casing = Target("vertical_cylinder", 2.0, 6.0, 30.0, remanence=rem, remanence_inclination=90.0,
+                    remanence_declination=0.0)
+    out.append(_profile_case(
+        "vertical-cylinder-remanence-poisson", "Poisson's relation", "Vertical cylinder, vertical remanence ↔ gravity",
+        "Gradient tensor (rim integral) with the target's remanence, as evaluate() runs it",
+        "Vertical derivative of the gravity cylinder", "Shaft of 6 m diameter from 2 to 30 m, 3 A/m downwards, no "
+        "induced part, at the pole", "nT", 1e-4, x, _magnetic(casing, x, 0.0, POLE, Survey(sensor_height=0.0)),
+        MU0 * rem / (4 * np.pi * G * 1000.0)
+        * _dgz_dz(lambda a, b: gravity.vertical_cylinder(x, a, b, 3.0, 1000.0), 2.0, 30.0) * 1e9))
 
     x = np.linspace(-80, 80, 161)
     out.append(_profile_case(
@@ -424,6 +459,11 @@ def _harmonica_cases() -> list[Case]:
         "harmonica-sphere-magnetic": ("Sphere, magnetic", "Magnetic dipole", f"{h} dipole_magnetic",
                                       "Radius 3 m, centre at 12 m, 0.01 SI, main field of Sivas, sensor 0.5 m above "
                                       "ground", "nT", 1e-10),
+        "harmonica-sphere-remanence": ("Sphere, induced and remanent magnetisation", "Magnetic dipole",
+                                       f"{h} dipole_magnetic",
+                                       "Radius 3 m, centre at 12 m, 0.01 SI plus 1.2 A/m of remanence (inclination "
+                                       "−35°, declination 140°), main field of Sivas, sensor 0.5 m above ground",
+                                       "nT", 1e-10),
         "harmonica-dyke-gravity": ("Vertical dyke, gravity", "Difference of two vertical steps (2D)",
                                    f"{h} prism_gravity, 200 km along strike", "4 m wide dyke from 3 to 15 m, "
                                    "+500 kg/m³", "µGal", 1e-5),
@@ -443,6 +483,9 @@ def _harmonica_cases() -> list[Case]:
             model = gravity.sphere(x, c["depth"], c["radius"], c["drho"]) * SI_TO_UGAL
         elif key == "harmonica-sphere-magnetic":
             model = magnetics.sphere(x, c["depth"], c["radius"], c["chi"], amb, height=c["height"])
+        elif key == "harmonica-sphere-remanence":
+            model = magnetics.sphere(x, c["depth"], c["radius"], c["chi"], amb, height=c["height"],
+                                     remanence=c["remanence"])
         elif key == "harmonica-dyke-gravity":
             width = c["along"][1] - c["along"][0]
             model = gravity.dyke(x, *c["depth"], width, c["drho"], centre=sum(c["along"]) / 2) * SI_TO_UGAL

@@ -164,7 +164,6 @@ def assess(x, anomaly, noise: float, depth: float, method: str = "gravity") -> A
         "Flat topography, homogeneous host and no regional trend; terrain and regional effects reduce the margin.",
     ]
     if method in ("magnetic", "gradient"):
-        assumptions.append("Peak is the largest absolute value of the (often two-lobed) anomaly; induced "
-                           "magnetisation only, remanence is not included.")
+        assumptions.append("Peak is the largest absolute value of the (often two-lobed) anomaly.")
     return Assessment(method, peak, float(x[peak_i]), width, shape, noise, snr, verdict, spacing, length, assumptions,
                       unit)
