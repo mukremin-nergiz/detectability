@@ -14,7 +14,7 @@ authors:
     family-names: "Nergiz"
     affiliation: "Independent Researcher, Sivas, Türkiye"
     orcid: "https://orcid.org/0009-0001-6789-2774"
-version: "0.6.0"
+version: "0.6.1"
 doi: 10.5281/zenodo.23931815
 identifiers:
   - type: doi
@@ -44,7 +44,7 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.23931816
     description: "Version 0.1.0"
-date-released: "2026-11-13"
+date-released: "2026-11-14"
 license: BSD-3-Clause
 url: "https://detectability.mukreminnergiz.com"
 repository-code: "https://github.com/mukremin-nergiz/detectability"

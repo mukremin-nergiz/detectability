@@ -4,6 +4,27 @@ All notable changes to Detectability. The format follows [Keep a Changelog](http
 and the project uses [semantic versioning](https://semver.org/). Each release is archived on Zenodo with its own DOI;
 the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.23931815) always resolves to the latest.
 
+## [0.6.1] - 2026-11-14
+
+### Added
+- GPR: the reproduction script now writes the antenna frequency that was used when it was chosen from the target
+  depth (`gpr_frequency`), so the script no longer depends on the depth-frequency rule staying the same; the result's
+  `details` say where the frequency came from (`frequency_source`: `"auto"` or `"given"`).
+- Water under either name: `fresh water` and `distilled water` resolve to the `water` row for density and
+  susceptibility, and `water` resolves to `fresh water` for GPR, instead of the method coming back as not assessed.
+
+### Changed
+- Inputs that no survey can have are refused with a `ValueError` that names the field, instead of giving a number or
+  an error from inside a model: a negative field or instrument noise (it used to disappear in the quadrature sum), a
+  negative sensor height, a main field given with an inclination outside ±90°, a relative permittivity below 1, a
+  negative conductivity, a resistivity of zero or less, a date that is not an ISO date, a value of the wrong type
+  (text where a number belongs, a boolean, NaN or infinity), `methods` that is not a list of names, and a target or
+  survey that is not a dictionary. A gravity, magnetic or gradient assessment with zero effective noise is refused as
+  well: it used to return an infinite signal-to-noise ratio.
+- The magnetic assumption line no longer says "no remanence unless given": `evaluate()` takes no remanence. It now
+  says that the result is for induced magnetisation only. (The model functions in `detectability.magnetics` still
+  accept a remanent magnetisation.)
+
 ## [0.6.0] - 2026-11-13
 
 DOI [10.5281/zenodo.24200875](https://doi.org/10.5281/zenodo.24200875)
