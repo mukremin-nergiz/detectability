@@ -6,6 +6,8 @@ the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.2393181
 
 ## [0.7.0] - 2026-11-14
 
+DOI [10.5281/zenodo.24209921](https://doi.org/10.5281/zenodo.24209921)
+
 ### Added
 - Remanent magnetisation of the target in `evaluate()` and `depth_limit()`, for the `magnetic` and `gradient`
   methods. **The default is unchanged: with nothing given, the magnetisation is induced only and every earlier result
