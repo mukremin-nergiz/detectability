@@ -139,3 +139,43 @@ def test_attenuation_is_frequency_independent_in_this_model():
     att = [evaluate(target, {**SITE, "gpr_frequency": f}, methods=["gpr"]).result("gpr").details["attenuation_db_per_m"]
            for f in (25, 100, 400, 1000)]
     assert max(att) - min(att) < 0.01 * max(att)
+
+
+# --- what frequency does, and does not do, in this model ------------------------------------------------------------
+
+def _gpr(target, frequency=None):
+    survey = {**SITE, **({"gpr_frequency": frequency} if frequency else {})}
+    return evaluate(target, survey, methods=["gpr"]).result("gpr")
+
+
+def test_every_result_states_the_attenuation_of_its_own_host_at_both_ends_of_the_band():
+    """The statement is general, the numbers are the host's own: nothing here is copied from another case."""
+    for host in ("limestone", "clay", "dry sand"):
+        r = _gpr({"shape": "sphere", "depth_top": 2, "size": 2, "material": "air", "host": host})
+        medium = gpr.medium(host)
+        low, high = medium.attenuation_db(25e6), medium.attenuation_db(1e9)
+        assert r.details["attenuation_db_per_m_25mhz"] == pytest.approx(low)
+        assert r.details["attenuation_db_per_m_1ghz"] == pytest.approx(high)
+        line = next(a for a in r.assessment.assumptions if a.startswith("Frequency is not modelled"))
+        assert f"{low:.3g} dB/m at 25 MHz" in line and f"{high:.3g} dB/m at 1 GHz" in line
+        assert "not only above 500 MHz" in line
+
+
+def test_attenuation_does_rise_with_frequency_in_a_conductive_host():
+    """Why the wording is not "attenuation is frequency-independent": that holds in a low-loss host only. In clay the
+    conduction loss of the exact wavenumber is 17 % higher at 1 GHz than at 25 MHz."""
+    clay = gpr.medium("clay")
+    assert clay.attenuation_db(1e9) / clay.attenuation_db(25e6) == pytest.approx(1.173, abs=0.002)
+
+
+def test_the_antenna_moves_the_depth_limit_only_through_the_target_size_factor():
+    """Measured, so the sentence in every result stays true: a large target is indifferent to the antenna, a small one
+    is seen deeper at the higher frequency (the opposite of real ground, which is what the next assumption says)."""
+    from detectability import depth_limit
+
+    def limit(size, frequency):
+        return depth_limit({"shape": "sphere", "size": size, "material": "air", "host": "limestone"},
+                           {**SITE, "gpr_frequency": frequency}, method="gpr", search=(0.05, 300)).depth
+
+    assert limit(5.0, 25) == pytest.approx(limit(5.0, 1000), rel=0.01)       # 20.35 m and 20.30 m
+    assert limit(0.2, 1000) > 4 * limit(0.2, 25)                             # 9.7 m against 2.2 m

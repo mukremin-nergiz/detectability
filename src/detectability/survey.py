@@ -490,6 +490,7 @@ def _gpr(t: Target, s: Survey, x) -> MethodResult:
     t0 = gpr.two_way_time_ns(t.depth_top, v)
     window = 1.3 * gpr.two_way_time_ns(max(t.depth_top + (t.size or 0), t.depth_top), v)
     alpha = float(host.attenuation_db(f))
+    alpha_low, alpha_high = float(host.attenuation_db(25e6)), float(host.attenuation_db(1e9))
     k_a = 2 * np.pi * a / lam
     a_.assumptions = [
         f"Signal-to-noise thresholds: >= {detect.CLEAR:g} clearly detectable, {detect.MARGINAL:g}-{detect.CLEAR:g} "
@@ -502,6 +503,12 @@ def _gpr(t: Target, s: Survey, x) -> MethodResult:
         "Reflection coefficient " + ("-1 (metal)" if target is None else f"{abs(R):.3g} (normal incidence, "
                                      f"target permittivity {target.permittivity:g}, conductivity "
                                      f"{target.conductivity * 1000:g} mS/m)") + ".",
+        "Frequency is not modelled in the ground at any frequency, not only above 500 MHz: the host's permittivity "
+        "and conductivity are constants, so there is no relaxation or scattering loss anywhere in the band. What is "
+        f"left is the conduction loss of the exact wavenumber, in this host {alpha_low:.3g} dB/m at 25 MHz and "
+        f"{alpha_high:.3g} dB/m at 1 GHz. Apart from that, the antenna changes the modelled depth limit only through "
+        "the target-size factor: hardly at all for a target large against the wavelength, and in favour of the higher "
+        "frequency for a small one.",
         "Homogeneous host with frequency-independent properties; real soils lose more at high frequency, so wet or "
         "clayey ground above ~500 MHz is optimistic.",
         f"Trace spacing at most a quarter wavelength in the host ({nyquist:.3g} m) and {detect.STATIONS_ACROSS} traces "
@@ -524,6 +531,7 @@ def _gpr(t: Target, s: Survey, x) -> MethodResult:
                # an assistant or another program, should not have to read the prose to find out.
                "frequency_source": "given" if s.gpr_frequency else "auto",
                "velocity_m_per_ns": float(v / 1e9), "attenuation_db_per_m": alpha,
+               "attenuation_db_per_m_25mhz": alpha_low, "attenuation_db_per_m_1ghz": alpha_high,
                "wavelength_m": float(lam), "reflection_coefficient": float(abs(R)), "two_way_time_ns": float(t0),
                "time_window_ns": float(window), "vertical_resolution_m": float(nyquist),
                "margin_db": float(20 * np.log10(a_.snr)) if a_.snr > 0 else None,
