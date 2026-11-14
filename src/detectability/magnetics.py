@@ -18,6 +18,8 @@ References
 ----------
 - Blakely, R. J. (1996). Potential Theory in Gravity and Magnetic Applications, Cambridge University Press, ch. 4, 5, 9.
 - Telford, W. M., Geldart, L. P., Sheriff, R. E. (1990). Applied Geophysics, 2nd ed., Cambridge University Press, ch. 3.
+- Frischknecht, F. C., Muth, L., Grette, R., Buckley, T., Kornegay, B. (1983). Geophysical methods for locating
+  abandoned wells. U.S. Geological Survey Open-File Report 83-702, section IV.B (the pole-pair model of a casing).
 """
 
 from __future__ import annotations
@@ -190,6 +192,43 @@ def vertical_cylinder(x, top: float, bottom: float, radius: float, susceptibilit
     f = _to_profile_frame(unit_vector(ambient.inclination, ambient.declination), azimuth)
     t = vertical_cylinder_tensor(np.asarray(x, float), 0.0, radius, top + height, bottom + height)
     return MU0 / (4 * np.pi) * np.einsum("i,...ij,j->...", f, t, m) * T_TO_NT
+
+
+def pole_pair(x, strength: float, top: float, separation: float, ambient: Ambient, azimuth: float = 0.0,
+              height: float = 0.0, offset: float = 0.0):
+    """Vertical steel casing as a pair of magnetic poles: one at ``top`` metres below ground, the other
+    ``separation`` metres beneath it. ``strength`` is the pole strength in A m.
+
+    This is the model a casing is fitted with when it has been measured, rather than computed from a susceptibility:
+    a steel pipe is magnetised along its axis, by the Earth's field and by whatever remanence it carries, and at any
+    distance large against its diameter that is the field of two poles of opposite sign at its ends. Each pole gives
+    B = mu0 / (4 pi) * p * r / r^3 (Frischknecht and others, 1983, eq. 1), so the anomaly of a long casing falls as
+    the inverse square of the distance to its top, and that of a short one faster.
+
+    A positive ``strength`` is a casing magnetised downwards, the direction the Earth's field gives it in the
+    northern hemisphere, with a positive anomaly above it. The total-field anomaly ignores the main field's intensity,
+    so ``ambient`` supplies only the direction of projection. ``offset`` moves the profile sideways: it is the
+    distance in metres from the casing to the profile line, measured to the right of the profile direction, for a
+    survey line that does not pass over the well. Several pole pairs (a second string of casing) are added by calling
+    this once for each.
+    """
+    if separation <= 0:
+        raise ValueError("separation between the poles must be positive")
+    if top + height <= 0:
+        raise ValueError("the casing must lie below the sensor (raise the sensor or bury the casing)")
+    x = np.asarray(x, float)
+    a = np.radians(azimuth)
+    north = x * np.cos(a) - offset * np.sin(a)
+    east = x * np.sin(a) + offset * np.cos(a)
+    f = unit_vector(ambient.inclination, ambient.declination)
+
+    def pole(p: float, depth: float):
+        down = -(height + depth)                      # from the pole up to the sensor, in a frame with z down
+        r3 = (north**2 + east**2 + down**2) ** 1.5
+        return MU0 / (4 * np.pi) * p * (f[0] * north + f[1] * east + f[2] * down) / r3
+
+    # Magnetised downwards: the upper end is the negative pole, the lower end the positive one.
+    return (pole(-strength, top) + pole(strength, top + separation)) * T_TO_NT
 
 
 def contact(x, top: float, bottom: float, susceptibility: float, ambient: Ambient, azimuth: float = 0.0,

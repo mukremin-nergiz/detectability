@@ -174,3 +174,74 @@ def test_vertical_cylinder_far_field_is_a_dipole():
     volume = np.pi * R**2 * (bottom - top)
     dipole = magnetics.sphere(x, (top + bottom) / 2, (3 * volume / (4 * np.pi)) ** (1 / 3), 0.01, MID)
     assert np.allclose(magnetics.vertical_cylinder(x, top, bottom, R, 0.01, MID), dipole, rtol=1e-3)
+
+
+# --- steel casing as a pair of poles (Frischknecht and others, 1983, USGS Open-File Report 83-702) --------------------
+
+FT = 0.3048
+
+
+def test_pole_pair_on_axis_at_the_pole_is_the_closed_form():
+    p, top, sep, h = 600.0, 3.0, 150.0, 40.0
+    expected = MU0 / (4 * np.pi) * p * (1 / (h + top) ** 2 - 1 / (h + top + sep) ** 2) * 1e9
+    assert magnetics.pole_pair(0.0, p, top, sep, POLE, height=h) == pytest.approx(expected, rel=1e-12)
+    assert expected > 0                    # magnetised downwards: positive above the casing
+
+
+def test_pole_pair_of_a_long_casing_falls_as_the_inverse_square():
+    near, far = (magnetics.pole_pair(0.0, 600.0, 0.0, 1e7, POLE, height=h) for h in (25.0, 50.0))
+    assert near / far == pytest.approx(4.0, rel=1e-6)
+
+
+def test_pole_pair_is_a_thin_cylinder_magnetised_along_its_axis():
+    """Two codes that share nothing: the cylinder's gradient tensor, and two point poles of strength M * area."""
+    radius, top, bottom, m = 0.05, 3.0, 103.0, 4000.0
+    x = np.linspace(-80.0, 80.0, 41)
+    cylinder = magnetics.vertical_cylinder(x, top, bottom, radius, 0.0, MID, azimuth=35.0, height=30.0,
+                                           remanence=(m, 90.0, 0.0))
+    poles = magnetics.pole_pair(x, m * np.pi * radius**2, top, bottom - top, MID, azimuth=35.0, height=30.0)
+    assert np.allclose(poles, cylinder, rtol=0, atol=1e-5 * np.abs(cylinder).max())
+
+
+def test_pole_pair_offset_is_a_parallel_line():
+    """A line 20 m to the side of the well is the same as moving the well 20 m the other way: checked against the
+    field of the two poles written out for a north-south line 20 m east of the casing."""
+    p, top, sep, h, off = 800.0, 4.0, 60.0, 35.0, 20.0
+    x = np.linspace(-100.0, 100.0, 21)
+    f = magnetics.unit_vector(MID.inclination, MID.declination)
+
+    def pole(strength, depth):
+        dz = -(h + depth)
+        return MU0 / (4 * np.pi) * strength * (f[0] * x + f[1] * off + f[2] * dz) / (x**2 + off**2 + dz**2) ** 1.5
+
+    expected = (pole(-p, top) + pole(p, top + sep)) * 1e9
+    assert np.allclose(magnetics.pole_pair(x, p, top, sep, MID, height=h, offset=off), expected, rtol=1e-12)
+    assert magnetics.pole_pair(0.0, p, top, sep, MID, height=h, offset=off) < magnetics.pole_pair(0.0, p, top, sep, MID, height=h)
+
+
+def test_pole_pair_reproduces_the_calculated_profiles_of_the_report():
+    """83-702 Table 2 gives the pole pairs fitted to ground surveys of wells near Denver (hybrid units, divided by
+    1076.4 for SI, distances in feet) and Figures 96, 97 and 101 plot the airborne profiles calculated from them. The
+    numbers here are the ends of those figures' vertical axes. This compares two implementations of one model; it is
+    not a comparison with a measurement."""
+    def field(north, down):
+        return Ambient(float(np.hypot(north, down)), float(np.degrees(np.arctan2(down, north))), 0.0)
+
+    x = np.linspace(-800.0, 800.0, 6401) * FT
+    well4 = field(21324.0, 50902.0)
+    for azimuth, plotted in ((0.0, 55211.2 - 55187.5), (90.0, 55210.9 - 55188.1)):        # Figures 96 and 97, 200 ft
+        t = (magnetics.pole_pair(x, 2158930 / 1076.4, 18.2 * FT, 12.3 * FT, well4, azimuth=azimuth, height=200 * FT)
+             + magnetics.pole_pair(x, 1010510 / 1076.4, 20.7 * FT, 979.2 * FT, well4, azimuth=azimuth, height=200 * FT))
+        assert t.max() - t.min() == pytest.approx(plotted, abs=0.5)
+    well5 = field(21331.0, 50928.0)
+    x = np.linspace(-400.0, 400.0, 3201) * FT
+    t = magnetics.pole_pair(x, 311960 / 1076.4, 6.3 * FT, 263.6 * FT, well5, azimuth=90.0, height=150 * FT)
+    assert t.max() - t.min() == pytest.approx(55225.0 - 55214.7, abs=0.3)                 # Figure 101, 150 ft
+
+
+def test_pole_pair_refuses_what_it_cannot_model():
+    with pytest.raises(ValueError):
+        magnetics.pole_pair(0.0, 100.0, 2.0, 0.0, POLE)
+    with pytest.raises(ValueError):
+        magnetics.pole_pair(0.0, 100.0, 0.0, 50.0, POLE, height=0.0)
+

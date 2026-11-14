@@ -4,6 +4,27 @@ All notable changes to Detectability. The format follows [Keep a Changelog](http
 and the project uses [semantic versioning](https://semver.org/). Each release is archived on Zenodo with its own DOI;
 the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.23931815) always resolves to the latest.
 
+## [0.8.0] - 2026-11-15
+
+### Added
+- `magnetics.pole_pair()`: the total-field anomaly of a vertical steel casing modelled as a pair of magnetic poles,
+  from its pole strength in A m, the depth of its upper pole and the separation of the two (Frischknecht and others,
+  1983, USGS Open-File Report 83-702, eq. 1). This is the model a casing is fitted with when it has been measured on
+  the ground; a positive strength is a casing magnetised downwards. `offset` gives the anomaly along a survey line
+  that passes to the side of the well instead of over it. Several pole pairs are added by calling it once for each.
+  It is a function of the `magnetics` module; `evaluate()` and `depth_limit()` do not use it and no result of theirs
+  changes.
+- One more row in the validation table: the pole pair against a thin vertical cylinder magnetised along its axis,
+  computed from the cylinder's gradient tensor (two codes that share nothing; they agree to 2e-4 %).
+- Tests that the function reproduces the airborne profiles calculated in the same report for two wells near Denver
+  (its Figures 96, 97 and 101) from the pole pairs in its Table 2. That compares two implementations of one model;
+  it is not a comparison with a measurement.
+
+### Fixed
+- The validation table in the README had not been regenerated since 0.7.0: the three rows added then (remanent
+  sphere, vertical cylinder with remanence, Harmonica with remanence) were missing from it. The tests and the website
+  were not affected; only the README's copy of the table.
+
 ## [0.7.1] - 2026-11-14
 
 DOI [10.5281/zenodo.24210154](https://doi.org/10.5281/zenodo.24210154)

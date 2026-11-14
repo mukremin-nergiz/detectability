@@ -287,6 +287,18 @@ def cases() -> list[Case]:
         gravity.prism(x, 0.0, *box[0], *box[1], *box[2], -2200.0) * SI_TO_UGAL,
         _point_masses(x, box, -2200.0) * SI_TO_UGAL))
 
+    x = np.linspace(-80, 80, 41)
+    radius, m_axial = 0.05, 4000.0
+    out.append(_profile_case(
+        "casing-pole-pair-thin-cylinder", "Independent formula", "Steel casing as a pair of poles",
+        "Two point poles of strength M × area (Frischknecht and others, 1983)",
+        "Thin vertical cylinder magnetised along its axis, from its gradient tensor",
+        "Pipe of 0.1 m diameter from 3 to 103 m, 4,000 A/m downwards, sensor at 30 m, main field of Sivas, "
+        "profile azimuth 35°", "nT", 0.001, x,
+        magnetics.pole_pair(x, m_axial * np.pi * radius**2, 3.0, 100.0, MID, azimuth=35.0, height=30.0),
+        magnetics.vertical_cylinder(x, 3.0, 103.0, radius, 0.0, MID, azimuth=35.0, height=30.0,
+                                    remanence=(m_axial, 90.0, 0.0))))
+
     x = np.linspace(-40, 40, 41)
     out.append(_profile_case(
         "cylinder-magnetic-strike", "Numerical integration", "Horizontal cylinder, magnetic", "2D line dipole",

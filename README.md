@@ -35,7 +35,7 @@ print(report.summary())
 ```
 
 ```text
-Detectability 0.7.1: sphere in limestone
+Detectability 0.8.0: sphere in limestone
 - gravity: peak 114 µGal, noise 11.2 µGal, S/N 10.2: clearly detectable
   stations every 5 m or less, profile at least 153 m long
 - magnetic: peak 0.462 nT, noise 2 nT, S/N 0.231: not detectable
@@ -71,6 +71,12 @@ Sweep the target size and you have a detection-limit chart; the website draws on
 Target shapes: `sphere`, `horizontal_cylinder`, `vertical_cylinder`, `prism`, `dyke` (any dip) and `contact`. The main
 geomagnetic field comes from IGRF-14 for the survey location and date. Typical densities and susceptibilities are built
 in, and measured contrasts can be given instead.
+
+A steel casing that has been measured, rather than assumed, can be modelled as a pair of magnetic poles:
+`magnetics.pole_pair(x, strength, top, separation, ambient, height=..., offset=...)` gives the total-field anomaly of a
+vertical casing from its pole strength in A m (Frischknecht and others, 1983, USGS Open-File Report 83-702), along a line
+that passes over the well or `offset` metres to its side. It is a function of the `magnetics` module only; `evaluate()`
+does not use it, because a pole strength is fitted to a measurement and is not a property of a material.
 
 Methods: `gravity`, `magnetic` (total-field anomaly) and, on request, `gradient`: the reading of a vertical gradiometer
 (lower minus upper sensor, in nT over the baseline), with presets for the Bartington Grad601, Sensys FGM650, Foerster
@@ -123,7 +129,9 @@ python tools/harmonica_reference.py --check
 | Independent formula | Horizontal cylinder, gravity | 2D polygon, 720 sides (Talwani; Won & Bevis) | 6.3e-12 % | 0.01 % |
 | Independent formula | Vertical dyke, gravity | 2D polygon (Won & Bevis) | 1.9e-13 % | 1.0e-06 % |
 | Independent formula | Sphere, magnetic gradient (gradiometer reading) | Closed-form vertical-dipole field at both sensors | 7.8e-14 % | 1.0e-10 % |
+| Independent formula | Sphere, remanent magnetisation across the field | Closed-form field of a horizontal dipole | 5.2e-14 % | 1.0e-10 % |
 | Numerical integration | Prism, gravity | 16³ Gauss–Legendre point masses | 2.9e-06 % | 0.001 % |
+| Independent formula | Steel casing as a pair of poles | Thin vertical cylinder magnetised along its axis, from its gradient tensor | 1.8e-04 % | 0.001 % |
 | Numerical integration | Horizontal cylinder, magnetic | 3D dipoles integrated along strike | 2.2e-07 % | 0.01 % |
 | Numerical integration | Prism, magnetic | 16³ Gauss–Legendre point dipoles | 1.3e-12 % | 0.001 % |
 | Numerical integration | Vertical cylinder, gravity | Gauss–Legendre over the cross-section, line masses in depth | 5.5e-13 % | 1.0e-08 % |
@@ -132,6 +140,7 @@ python tools/harmonica_reference.py --check
 | Poisson's relation | Vertical dyke, gravity ↔ magnetic | Vertical derivative of the gravity dyke | 2.2e-08 % | 1.0e-04 % |
 | Poisson's relation | Dipping dyke (60°), gravity ↔ magnetic | Vertical derivative of the gravity dyke | 2.6e-08 % | 1.0e-04 % |
 | Poisson's relation | Vertical cylinder, gravity ↔ magnetic | Vertical derivative of the gravity cylinder | 3.6e-08 % | 1.0e-04 % |
+| Poisson's relation | Vertical cylinder, vertical remanence ↔ gravity | Vertical derivative of the gravity cylinder | 3.6e-08 % | 1.0e-04 % |
 | Poisson's relation | Vertical contact, gravity ↔ magnetic | Vertical derivative of the gravity step | 3.9e-06 % | 1.0e-04 % |
 | Analytical limit | GPR, attenuation in a low-loss host | Low-loss limit 1636 σ/√εr dB/m (σ in S/m) | 1.1e-04 % | 0.01 % |
 | Analytical limit | GPR, velocity in a low-loss host | c/√εr | 2.5e-06 % | 1.0e-04 % |
@@ -143,7 +152,8 @@ python tools/harmonica_reference.py --check
 | Independent code | Prism, gravity | Harmonica 0.7.0 prism_gravity | 3.0e-12 % | 1.0e-08 % |
 | Independent code | Prism, magnetic | Harmonica 0.7.0 prism_magnetic | 4.8e-13 % | 1.0e-08 % |
 | Independent code | Sphere, gravity | Harmonica 0.7.0 point_gravity | 3.9e-14 % | 1.0e-10 % |
-| Independent code | Sphere, magnetic | Harmonica 0.7.0 dipole_magnetic | 8.8e-14 % | 1.0e-10 % |
+| Independent code | Sphere, magnetic | Harmonica 0.7.0 dipole_magnetic | 7.6e-14 % | 1.0e-10 % |
+| Independent code | Sphere, induced and remanent magnetisation | Harmonica 0.7.0 dipole_magnetic | 3.7e-14 % | 1.0e-10 % |
 | Independent code | Vertical dyke, gravity | Harmonica 0.7.0 prism_gravity, 200 km along strike | 3.6e-07 % | 1.0e-05 % |
 | Independent code | Vertical dyke, magnetic | Harmonica 0.7.0 prism_magnetic, 200 km along strike | 5.1e-07 % | 1.0e-05 % |
 | Reference service | IGRF-14 main field, 5 sites | British Geological Survey IGRF-14 | 0.38 nT, 0.0005° | 1 nT, 0.002° |
@@ -170,7 +180,7 @@ field noise (0.5 nT) is an assumption, not a published figure: soil, heading and
 
 See [CITATION.cff](https://github.com/mukremin-nergiz/detectability/blob/main/CITATION.cff), or:
 
-> Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.7.1) [Computer software].
+> Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.8.0) [Computer software].
 > Zenodo. https://doi.org/10.5281/zenodo.23931815
 
 The DOI above always resolves to the latest version; each release also has its own DOI on Zenodo. Changes between
