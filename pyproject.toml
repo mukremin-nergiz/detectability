@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "detectability"
-version = "0.7.0"
+version = "0.7.1"
 description = "Pre-survey detectability, modelled and reproducible: forward-modelled gravity, magnetic, magnetic-gradient, GPR and resistivity (ERT) responses, station spacing and a detectability verdict for near-surface targets."
 readme = "README.md"
 keywords = ["geophysics", "gravity", "magnetics", "gradiometer", "ground-penetrating radar", "GPR", "electrical resistivity tomography", "ERT", "survey design", "near-surface", "forward modelling", "IGRF"]
