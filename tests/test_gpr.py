@@ -156,9 +156,10 @@ def test_every_result_states_the_attenuation_of_its_own_host_at_both_ends_of_the
         low, high = medium.attenuation_db(25e6), medium.attenuation_db(1e9)
         assert r.details["attenuation_db_per_m_25mhz"] == pytest.approx(low)
         assert r.details["attenuation_db_per_m_1ghz"] == pytest.approx(high)
-        line = next(a for a in r.assessment.assumptions if a.startswith("Frequency is not modelled"))
+        line = next(a for a in r.assessment.assumptions if a.startswith("The ground's properties do not change"))
         assert f"{low:.3g} dB/m at 25 MHz" in line and f"{high:.3g} dB/m at 1 GHz" in line
         assert "not only above 500 MHz" in line
+        assert "most optimistic" in line           # a small target at a high frequency must not read as good news
 
 
 def test_attenuation_does_rise_with_frequency_in_a_conductive_host():

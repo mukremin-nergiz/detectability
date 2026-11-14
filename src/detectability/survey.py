@@ -503,12 +503,14 @@ def _gpr(t: Target, s: Survey, x) -> MethodResult:
         "Reflection coefficient " + ("-1 (metal)" if target is None else f"{abs(R):.3g} (normal incidence, "
                                      f"target permittivity {target.permittivity:g}, conductivity "
                                      f"{target.conductivity * 1000:g} mS/m)") + ".",
-        "Frequency is not modelled in the ground at any frequency, not only above 500 MHz: the host's permittivity "
-        "and conductivity are constants, so there is no relaxation or scattering loss anywhere in the band. What is "
-        f"left is the conduction loss of the exact wavenumber, in this host {alpha_low:.3g} dB/m at 25 MHz and "
-        f"{alpha_high:.3g} dB/m at 1 GHz. Apart from that, the antenna changes the modelled depth limit only through "
-        "the target-size factor: hardly at all for a target large against the wavelength, and in favour of the higher "
-        "frequency for a small one.",
+        "The ground's properties do not change with frequency in this model: permittivity and conductivity are "
+        "constants, so no relaxation or scattering loss is included anywhere in the band, not only above 500 MHz. "
+        "What remains is conduction loss from the exact wavenumber, which does grow with frequency where the ground "
+        f"is lossy: in this host {alpha_low:.3g} dB/m at 25 MHz and {alpha_high:.3g} dB/m at 1 GHz. Apart from that, "
+        "the antenna changes the modelled depth limit only through the target-size factor: hardly at all for a target "
+        "large against the wavelength, and in favour of the higher frequency for a small one. That is the opposite of "
+        "real ground, which loses more at high frequency: the model gives a high frequency its gain on a small target "
+        "without its cost in the ground, so that is where its figures are most optimistic.",
         "Homogeneous host with frequency-independent properties; real soils lose more at high frequency, so wet or "
         "clayey ground above ~500 MHz is optimistic.",
         f"Trace spacing at most a quarter wavelength in the host ({nyquist:.3g} m) and {detect.STATIONS_ACROSS} traces "

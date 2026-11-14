@@ -7,13 +7,15 @@ the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.2393181
 ## [0.7.1] - 2026-11-14
 
 ### Changed
-- GPR results say plainly that frequency is not modelled in the ground at any frequency, not only above 500 MHz, and
-  state the attenuation of their own host at 25 MHz and at 1 GHz (also in `details`:
-  `attenuation_db_per_m_25mhz`, `attenuation_db_per_m_1ghz`). In a low-loss host the two are the same (limestone:
+- GPR results say plainly that the ground's properties do not change with frequency in the model, so no relaxation
+  or scattering loss is included anywhere in the band, not only above 500 MHz; and they state the attenuation of
+  their own host at 25 MHz and at 1 GHz (two new entries in `details`: `attenuation_db_per_m_25mhz` and
+  `attenuation_db_per_m_1ghz`). In a low-loss host the two are the same (limestone:
   0.667 and 0.668 dB/m); in a conductive one the conduction loss rises with frequency (clay: 13.2 and 15.5 dB/m).
   The antenna changes the modelled depth limit only through the target-size factor: hardly for a target large against
-  the wavelength, and in favour of the higher frequency for a small one. No number in a result changes; only the
-  assumptions and the two new `details` entries.
+  the wavelength, and in favour of the higher frequency for a small one, where the model's figures are most
+  optimistic, because real ground loses more at high frequency. No number in a result changes; only the assumptions
+  and the two new `details` entries.
 
 ## [0.7.0] - 2026-11-14
 

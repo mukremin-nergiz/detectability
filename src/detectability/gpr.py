@@ -15,13 +15,14 @@ record, referred to 1 m). Signal-to-noise ratio = echo / 10**(-Q/20).
 Each step and its limits:
 - Wave speed and attenuation are exact for a homogeneous medium with frequency-independent permittivity and
   conductivity. Real soils lose more at high frequency (water relaxation, scattering), so results above ~500 MHz in
-  wet or clayey ground are optimistic. More generally, frequency is not modelled in the ground at any frequency: in a
-  low-loss host the attenuation is the same from 25 MHz to 1 GHz (limestone: 0.667 and 0.668 dB/m), and in a
-  conductive one it rises only by the conduction loss of the exact wavenumber (clay: 13.2 and 15.5 dB/m). The antenna
-  then changes the depth limit only through the target-size factor: hardly for a target large against the wavelength
-  (a 5 m void in limestone: 20.35 m at 25 MHz, 20.30 m at 1 GHz), and in favour of the higher frequency for a small
-  one (a 0.2 m void: 2.2 m at 25 MHz, 9.7 m at 1 GHz), which is the opposite of what real ground does. Each result
-  states the two attenuations for its own host.
+  wet or clayey ground are optimistic. More generally, the ground's properties do not change with frequency here, so
+  no relaxation or scattering loss is included anywhere in the band. What remains is conduction loss, which grows with
+  frequency only where the ground is lossy: the same from 25 MHz to 1 GHz in limestone (0.667 and 0.668 dB/m), higher
+  at 1 GHz in clay (13.2 and 15.5 dB/m). The antenna then changes the depth limit only through the target-size factor:
+  hardly for a target large against the wavelength (a 5 m void in limestone: 20.35 m at 25 MHz, 20.30 m at 1 GHz),
+  and in favour of the higher frequency for a small one (a 0.2 m void: 2.2 m at 25 MHz, 9.7 m at 1 GHz). Real ground
+  does the opposite: the model gives a high frequency its gain on a small target without its cost in the ground, so
+  that is where its figures are most optimistic. Each result states the two attenuations for its own host.
 - R is exact for a plane wave at normal incidence on a plane boundary; a perfect conductor (metal) has R = -1.
 - S is geometric optics for curved targets: a sphere of radius a at range r returns a / (r + a) of a flat reflector's
   echo and a horizontal cylinder sqrt(a / (r + a)) (one curved direction). Where the target is small compared with the
