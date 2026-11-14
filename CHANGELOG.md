@@ -6,6 +6,8 @@ the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.2393181
 
 ## [0.7.1] - 2026-11-14
 
+DOI [10.5281/zenodo.24210154](https://doi.org/10.5281/zenodo.24210154)
+
 ### Changed
 - GPR results say plainly that the ground's properties do not change with frequency in the model, so no relaxation
   or scattering loss is included anywhere in the band, not only above 500 MHz; and they state the attenuation of
