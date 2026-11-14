@@ -6,6 +6,8 @@ the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.2393181
 
 ## [0.8.0] - 2026-11-15
 
+DOI [10.5281/zenodo.24233562](https://doi.org/10.5281/zenodo.24233562)
+
 ### Added
 - `magnetics.pole_pair()`: the total-field anomaly of a vertical steel casing modelled as a pair of magnetic poles,
   from its pole strength in A m, the depth of its upper pole and the separation of the two (Frischknecht and others,
