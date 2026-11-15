@@ -3,12 +3,13 @@ message: "If you use Detectability, please cite it as below."
 title: "Detectability: Pre-survey detectability, modelled and reproducible"
 type: software
 abstract: >-
-  Detectability predicts, before fieldwork, whether a gravity or magnetic survey will detect a buried target. It
-  models the anomaly of simple near-surface targets (sphere, horizontal and vertical cylinder, rectangular prism,
-  dipping dyke, vertical contact) along a profile, takes the main geomagnetic field from IGRF-14 for the survey
-  location and date, compares the anomaly with instrument and field noise, and returns a verdict per method with the
-  recommended station spacing, profile length, assumptions and a script that reproduces the result. Every model is
-  validated against an independent result, including an independent code (Harmonica).
+  Detectability predicts, before fieldwork, whether a gravity, magnetic, magnetic-gradient, ground-penetrating radar
+  (GPR) or electrical resistivity (ERT) survey will detect a buried target. It models the response of simple
+  near-surface targets (sphere, horizontal and vertical cylinder, rectangular prism, dipping dyke, vertical contact)
+  along a profile, takes the main geomagnetic field from IGRF-14 for the survey location and date, compares the
+  response with instrument and field noise, and returns a verdict per method with the recommended station spacing,
+  profile length, assumptions and a script that reproduces the result. ERT uses pyGIMLi, an optional dependency.
+  Every model is validated against an independent result, including an independent code (Harmonica).
 authors:
   - given-names: "Mükremin"
     family-names: "Nergiz"

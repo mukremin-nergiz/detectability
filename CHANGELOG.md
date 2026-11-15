@@ -4,6 +4,12 @@ All notable changes to Detectability. The format follows [Keep a Changelog](http
 and the project uses [semantic versioning](https://semver.org/). Each release is archived on Zenodo with its own DOI;
 the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.23931815) always resolves to the latest.
 
+## [Unreleased]
+
+### Changed
+- `CITATION.cff` abstract and the opening of the README name all five methods (gravity, magnetics, magnetic gradient,
+  GPR, ERT); they still read as if the library covered gravity and magnetics only. No change to the code.
+
 ## [0.8.0] - 2026-11-15
 
 DOI [10.5281/zenodo.24233562](https://doi.org/10.5281/zenodo.24233562)

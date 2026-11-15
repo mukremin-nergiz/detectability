@@ -5,7 +5,8 @@
 [![licence: BSD-3-Clause](https://img.shields.io/badge/licence-BSD--3--Clause-blue.svg)](https://github.com/mukremin-nergiz/detectability/blob/main/LICENSE)
 
 **Pre-survey detectability, modelled and reproducible.** Describe a buried target and a survey. Detectability models the gravity and
-magnetic response of the target, compares it with instrument and field noise, and gives a verdict for each method
+magnetic response of the target and, on request, its magnetic-gradient, ground-penetrating radar (GPR) and electrical
+resistivity (ERT) response, compares it with instrument and field noise, and gives a verdict for each method
 (clearly detectable, marginal, not detectable), with the recommended station spacing and profile length, every
 assumption, and a Python script that reproduces the result.
 
