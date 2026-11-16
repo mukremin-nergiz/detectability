@@ -177,6 +177,12 @@ not guarantees. Instrument presets come from manufacturers' data sheets (`detect
 source); field noise, which usually dominates, is a stated assumption that you can change. For gradiometers the default
 field noise (0.5 nT) is an assumption, not a published figure: soil, heading and walking noise depend on the site.
 
+## Feedback
+
+Used it on a real survey? [Tell how the modelled result compared](https://github.com/mukremin-nergiz/detectability/issues/new/choose)
+with what the survey showed, or report a result that looks wrong. See
+[CONTRIBUTING.md](https://github.com/mukremin-nergiz/detectability/blob/main/CONTRIBUTING.md).
+
 ## Citation
 
 See [CITATION.cff](https://github.com/mukremin-nergiz/detectability/blob/main/CITATION.cff), or:

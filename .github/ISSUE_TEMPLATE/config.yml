@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Method and assumptions
+    url: https://detectability.mukreminnergiz.com/method
+    about: How each number is computed and where each formula comes from.

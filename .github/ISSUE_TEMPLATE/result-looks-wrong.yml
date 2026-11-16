@@ -1,0 +1,30 @@
+name: A result looks wrong
+description: A number, a verdict or an assumption that does not match a source, a measurement or another code.
+title: "Result: "
+labels: ["result"]
+body:
+  - type: textarea
+    id: inputs
+    attributes:
+      label: Inputs
+      description: The link to the case on the site, the downloaded script, or the inputs you gave.
+    validations:
+      required: true
+  - type: textarea
+    id: got
+    attributes:
+      label: What Detectability gave
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and from where
+      description: A book or paper (with page or equation), a measurement, or another program.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Where and which version
+      description: Website, ChatGPT, QGIS plugin or Python library, and the version shown with the result.

@@ -1,0 +1,45 @@
+name: I used Detectability on a real survey
+description: Tell how the modelled result compared with what the survey showed. Short is fine.
+title: "Field use: "
+labels: ["field use"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. Comparisons with real surveys are what improves the noise assumptions and the verdict thresholds.
+        Please leave out anything confidential: client names, exact coordinates and site names are not needed.
+  - type: textarea
+    id: case
+    attributes:
+      label: Target and survey
+      description: What was the target (shape, size, depth, material and host), which method and instrument, and what station or line spacing?
+    validations:
+      required: true
+  - type: textarea
+    id: comparison
+    attributes:
+      label: Modelled against measured
+      description: What did Detectability give (peak anomaly, noise, verdict) and what did the survey show? A link to the case on the site, or the downloaded script, helps.
+    validations:
+      required: true
+  - type: textarea
+    id: noise
+    attributes:
+      label: Noise on site
+      description: If you measured it (repeat stations, base readings, line-to-line scatter), what was it and how did it compare with the assumed field noise?
+  - type: dropdown
+    id: mention
+    attributes:
+      label: May this be mentioned as a use of the tool?
+      description: For example in the documentation or in a paper about the software.
+      options:
+        - "Yes, with my name"
+        - "Yes, without my name"
+        - "No"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Where and which version
+      description: Website, ChatGPT, QGIS plugin or Python library, and the version shown with the result.
