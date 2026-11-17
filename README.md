@@ -69,6 +69,46 @@ Pass `threshold=detect.MARGINAL` for the lower threshold, and `search=(shallow, 
 Sweep the target size and you have a detection-limit chart; the website draws one at
 [/limits](https://detectability.mukreminnergiz.com/limits).
 
+### What if the target lies between two survey lines?
+
+`evaluate()` models a profile that passes over the target. A survey is a set of parallel lines and the target's
+position is not known, so it can lie anywhere between two of them. Give the survey a `line_spacing` (m) and a
+compact target (`sphere`, `vertical_cylinder`, `prism`) is assessed where the survey reads least: for every position
+between two lines the line that reads most is taken, and the position where that is least is the one reported. It is
+searched for, not assumed to be the midpoint, because a magnetic anomaly is displaced from its source.
+
+```python
+from detectability import evaluate, spacing_limit
+
+cavity = {"shape": "sphere", "depth_top": 10, "size": 20, "material": "air", "host": "limestone"}
+print(evaluate(cavity, {"line_spacing": 40}, methods=["gravity"]).summary())
+print(spacing_limit(cavity, method="gravity"))
+```
+
+```text
+Detectability 0.8.0: sphere in limestone
+- gravity: peak 63 µGal, noise 11.2 µGal, S/N 5.64: clearly detectable
+  worst case between lines 40 m apart: 35 % of the best line (178 µGal); an ideal survey, see the assumptions
+  stations every 5 m or less, profile at least 173 m long
+Recommended method: gravity
+gravity: detectable between lines (S/N >= 5) up to 43.2 m line spacing
+```
+
+The peak, signal-to-noise ratio, verdict and profile are then those of that line; `assessment.peak_over_target` and
+`assessment.peak_best_line` keep the figures it is measured against, and `depth_limit()` honours the spacing too.
+Lines run along `profile_azimuth`. It applies to gravity, magnetic and gradient; a 2D target (`horizontal_cylinder`,
+`dyke`, `contact`) reads the same on every line that crosses it, and GPR and ERT results say that the spacing was not
+applied.
+
+**It is the worst case of an ideal survey**: straight, evenly spaced lines at constant height over flat ground. The
+one published line-thinning measurement found is a drone magnetic survey over a buried well casing on a steep
+hillside (Wang and others, 2026, [doi:10.1021/acs.est.6c02007](https://doi.org/10.1021/acs.est.6c02007)): with the
+well midway between the lines kept, the measured peak was about 87, 78 and 57 % of the dense survey's at 20, 30 and
+40 m spacing, where this calculation gives 95, 87 and 77 % (north-south lines; the paper does not give the line
+direction, and puts the gap at 40 m and beyond down to height variation over steep terrain). One well is a
+consistency check, not a validation: it shows the calculation is on the optimistic side, and every result that uses
+a line spacing says so. The comparison is `tests/test_line_spacing.py`.
+
 Target shapes: `sphere`, `horizontal_cylinder`, `vertical_cylinder`, `prism`, `dyke` (any dip) and `contact`. The main
 geomagnetic field comes from IGRF-14 for the survey location and date. Typical densities and susceptibilities are built
 in, and measured contrasts can be given instead.

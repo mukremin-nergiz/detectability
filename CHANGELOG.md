@@ -6,6 +6,28 @@ the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.2393181
 
 ## [Unreleased]
 
+### Added
+- `Survey.line_spacing` (m between parallel survey lines, which run along `profile_azimuth`). Given, a compact target
+  (`sphere`, `vertical_cylinder`, `prism`) is assessed for gravity, magnetic and gradient where the survey reads
+  least between two lines, on the line that reads most there, instead of on a profile through the target. The place
+  is searched for, not taken as the midpoint: a magnetic anomaly is displaced from its source. The peak,
+  signal-to-noise ratio, verdict, width and profile of the result are those of that line; the new assessment fields
+  `line_spacing`, `line_offset`, `peak_over_target` and `peak_best_line` say what they are measured against, and the
+  assumptions state it in words. A 2D target reads the same on every line and the result says so; GPR and ERT
+  results say the spacing was not applied. **Without a `line_spacing` no result changes.**
+- `spacing_limit()` and `SpacingLimit`: the widest line spacing at which a method still reaches the threshold for a
+  target between two lines; the companion of `depth_limit()`, which now honours a `line_spacing` on the survey.
+- `offset` on `magnetics.sphere`, `magnetics.prism` and `magnetics.vertical_cylinder`: the profile moved sideways, as
+  `magnetics.pole_pair` already had. No new formula: the shapes were computed in three dimensions with the
+  across-line coordinate fixed at zero.
+- Every result that uses a line spacing carries the sentence that it is the worst case of an ideal survey (straight,
+  evenly spaced lines, constant height, flat ground) and that the one published line-thinning measurement found
+  (Wang and others, 2026, doi:10.1021/acs.est.6c02007) recovered less than the calculation gives at every spacing.
+  The comparison is a test (`tests/test_line_spacing.py`): a consistency check on one well, not a validation.
+- Tests: the offset against a profile turned through a right angle and against the independent pole-pair code; the
+  gravity worst case at the midpoint in closed form; wider lines never read more; `spacing_limit()` brackets its
+  threshold.
+
 ### Changed
 - `CITATION.cff` abstract and the opening of the README name all five methods (gravity, magnetics, magnetic gradient,
   GPR, ERT); they still read as if the library covered gravity and magnetics only. No change to the code.

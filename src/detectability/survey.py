@@ -127,6 +127,9 @@ class Survey:
     gradiometer_height: float = 0.2       # m, lower sensor above ground (Bartington: about 20 cm in normal use)
     gradiometer_baseline: float | None = None   # m between the sensors; default: the gradiometer preset's
     profile_azimuth: float = 0.0          # degrees east of north; 2D targets strike at right angles to it
+    # m between parallel survey lines (they run along profile_azimuth). Given, a compact target is assessed where the
+    # survey reads least between two lines instead of on a line through it. Gravity, magnetic and gradient only.
+    line_spacing: float | None = None
     latitude: float | None = None         # for the main field (IGRF-14); needed for magnetics
     longitude: float | None = None
     date: str | None = None               # ISO date of the survey; default: today
@@ -150,6 +153,8 @@ class Survey:
         for name in ("sensor_height", "gradiometer_height"):
             if getattr(self, name) < 0:
                 raise ValueError(f"{name} is the height above ground and must be zero or positive")
+        if self.line_spacing is not None and self.line_spacing <= 0:
+            raise ValueError("line_spacing is the distance between survey lines and must be positive")
         if self.latitude is not None and not -90 <= self.latitude <= 90:
             raise ValueError("latitude must be within [-90, 90]")
         if self.longitude is not None and not -180 <= self.longitude <= 360:
@@ -218,6 +223,9 @@ class Report:
             else:
                 lines.append(f"- {r.method}: peak {a.peak:.3g} {a.units}, noise {a.noise:.3g} {a.units}, "
                              f"S/N {a.snr:.3g}: {a.verdict}")
+            if a.line_spacing is not None:
+                lines.append(f"  worst case between lines {a.line_spacing:g} m apart: {100 * a.peak / a.peak_best_line:.0f} % "
+                             f"of the best line ({a.peak_best_line:.3g} {a.units}); an ideal survey, see the assumptions")
             if a.verdict != "not detectable":
                 lines.append(f"  stations every {a.station_spacing:g} m or less, profile at least "
                              f"{a.profile_length:.0f} m long")
@@ -354,17 +362,19 @@ def _contrast(t: Target, method: str):
         return None, "", str(e.args[0]) + " (give the contrast directly)"
 
 
-def _gravity(t: Target, x, drho):
+def _gravity(t: Target, x, drho, offset: float = 0.0):
+    """``offset``: metres from the target to the survey line, across it. Compact shapes only; 2D ones ignore it."""
     r = (t.size or 0) / 2
+    y = np.full_like(x, offset)
     if t.shape == "sphere":
-        return gravity.sphere(x, t.depth_top + r, r, drho)
+        return gravity.sphere(x, t.depth_top + r, r, drho, y)
     if t.shape == "horizontal_cylinder":
         return gravity.horizontal_cylinder(x, t.depth_top + r, r, drho)
     if t.shape == "vertical_cylinder":
-        return gravity.vertical_cylinder(x, t.depth_top, t.depth_bottom, r, drho)
+        return gravity.vertical_cylinder(x, t.depth_top, t.depth_bottom, r, drho, y)
     if t.shape == "prism":
         a, c = t.size / 2, (t.length or t.size) / 2
-        return gravity.prism(x, 0.0, -a, a, -c, c, t.depth_top, t.depth_bottom, drho)
+        return gravity.prism(x, y, -a, a, -c, c, t.depth_top, t.depth_bottom, drho)
     if t.shape == "dyke":
         return gravity.dyke(x, t.depth_top, t.depth_bottom, t.size, drho, dip=t.dip)
     return gravity.vertical_step(x, t.depth_top, t.depth_bottom, drho)
@@ -401,18 +411,18 @@ def _magnetisation_note(t: Target) -> str:
     return "induced magnetisation only (no remanence given)"
 
 
-def _magnetic(t: Target, x, chi, amb, s: Survey):
+def _magnetic(t: Target, x, chi, amb, s: Survey, offset: float = 0.0):
     r = (t.size or 0) / 2
     kw = dict(azimuth=s.profile_azimuth, height=s.sensor_height, remanence=_remanence(t, chi, amb))
     if t.shape == "sphere":
-        return magnetics.sphere(x, t.depth_top + r, r, chi, amb, **kw)
+        return magnetics.sphere(x, t.depth_top + r, r, chi, amb, offset=offset, **kw)
     if t.shape == "horizontal_cylinder":
         return magnetics.horizontal_cylinder(x, t.depth_top + r, r, chi, amb, **kw)
     if t.shape == "vertical_cylinder":
-        return magnetics.vertical_cylinder(x, t.depth_top, t.depth_bottom, r, chi, amb, **kw)
+        return magnetics.vertical_cylinder(x, t.depth_top, t.depth_bottom, r, chi, amb, offset=offset, **kw)
     if t.shape == "prism":
         a, c = t.size / 2, (t.length or t.size) / 2
-        return magnetics.prism(x, -a, a, -c, c, t.depth_top, t.depth_bottom, chi, amb, **kw)
+        return magnetics.prism(x, -a, a, -c, c, t.depth_top, t.depth_bottom, chi, amb, offset=offset, **kw)
     if t.shape == "dyke":
         return magnetics.dyke(x, t.depth_top, t.depth_bottom, t.size, chi, amb, dip=t.dip, **kw)
     return magnetics.contact(x, t.depth_top, t.depth_bottom, chi, amb, **kw)
@@ -430,10 +440,87 @@ def _main_field(s: Survey):
                                            "inclination": round(f.inclination, 3), "declination": round(f.declination, 3)}
 
 
-def _gradient(t: Target, x, chi, amb, s: Survey, baseline: float):
+def _gradient(t: Target, x, chi, amb, s: Survey, baseline: float, offset: float = 0.0):
     """Gradiometer reading: total-field anomaly at the lower sensor minus that at the upper sensor, in nT."""
     low, high = replace(s, sensor_height=s.gradiometer_height), replace(s, sensor_height=s.gradiometer_height + baseline)
-    return _magnetic(t, x, chi, amb, low) - _magnetic(t, x, chi, amb, high)
+    return _magnetic(t, x, chi, amb, low, offset) - _magnetic(t, x, chi, amb, high, offset)
+
+
+LINE_METHODS = ("gravity", "magnetic", "gradient")     # methods a line spacing is applied to
+#: Said in every result that uses a line spacing. The comparison behind it is tests/test_line_spacing.py.
+LINE_SPACING_CAVEAT = (
+    "The line spacing is assessed for an ideal survey: straight, evenly spaced lines at constant height over flat "
+    "ground. A real survey can lose more. In the one published line-thinning test found (Wang and others, 2026, "
+    "doi:10.1021/acs.est.6c02007: a drone magnetic survey over one buried well casing on a steep hillside, sensor "
+    "about 35 m above ground) the "
+    "measured recovery was lower than this calculation gives at every spacing, and increasingly so above 30 m.")
+_POSITIONS = 200      # target positions tried between two lines (even: the midpoint is one of them)
+_SCAN = 401           # stations along a line while scanning; the line finally assessed uses the full profile
+
+
+def _reference_depth(t: Target) -> float:
+    size = t.size or 0.0
+    return t.depth_top + size / 2 if t.shape in ("sphere", "horizontal_cylinder") else (t.depth_top + t.depth_bottom) / 2
+
+
+def _nearest(t: Target, height: float) -> float:
+    """Distance from the sensor to the nearest part of the target that sets the anomaly's width: its centre for a
+    sphere, its top otherwise. Never zero."""
+    depth = t.depth_top + (t.size or 0.0) / 2 if t.shape == "sphere" else t.depth_top
+    return max(depth + height, 1e-3)
+
+
+def _line_profile(t: Target, x, height: float, spacing: float, n: int | None = None) -> np.ndarray:
+    """Stations along a line beside the target. As long as the usual profile, or longer where the sensor height or
+    the line spacing puts the line far from the target; and graded, close together in the middle (about a
+    twenty-fifth of the distance to the target) and wider apart towards the ends, so that a narrow anomaly whose peak
+    is not at x = 0 is still sampled where it peaks."""
+    n = n or len(x)
+    half = max(float(x[-1]), 8.0 * (_reference_depth(t) + height), 4.0 * spacing)
+    ratio = half / (_nearest(t, height) / 25.0 * (n // 2))       # sinh(k) / k for the grading k
+    if ratio <= 1.0:
+        return np.linspace(-half, half, n)
+    lo, hi = 1e-6, 50.0
+    for _ in range(80):
+        k = (lo + hi) / 2
+        lo, hi = (k, hi) if np.sinh(k) / k < ratio else (lo, k)
+    return half * np.sinh(k * np.linspace(-1.0, 1.0, n)) / np.sinh(k)
+
+
+def _between_lines(model, scan, spacing: float, nearest: float, extent: float):
+    """The line a survey with parallel lines ``spacing`` apart reads most on, for a target placed where that reading
+    is least.
+
+    ``model(x, offset)`` is the anomaly along a line ``offset`` metres to the side of the target. A line's reading is
+    its largest absolute value. For a target at across-line position p (0 <= p < spacing) the lines lie at
+    k * spacing - p, and the survey's reading is that of the line that reads most: a target between two lines is found
+    if either of them sees it. The worst case is the position p where this is least. It is searched for, not taken as
+    the midpoint: a magnetic anomaly is displaced from its source and lopsided, because the field is inclined.
+
+    ``nearest`` is the distance from the sensor to the target and ``extent`` its half-width across the lines; the
+    anomaly's peak is looked for within three times the first plus the second to either side of the target. Returns
+    (offset of the line to assess, offset of the best line any survey could fly).
+    """
+    span = spacing + 3.0 * nearest + extent
+    count = int(np.clip(2 * span / (nearest / 8.0), 160, 800)) // 2 * 2 + 1       # odd: zero offset is one of them
+    offsets = np.linspace(-span, span, count)
+    readings = np.array([float(np.abs(model(scan, o)).max()) for o in offsets])
+    i = int(readings.argmax())
+    best = float(offsets[i])
+    if 0 < i < count - 1:       # the top of the parabola through the three readings round the largest
+        a, b, c = readings[i - 1], readings[i], readings[i + 1]
+        if a - 2 * b + c < 0:
+            best += 0.5 * (a - c) / (a - 2 * b + c) * float(offsets[1] - offsets[0])
+    worst, worst_offset = np.inf, 0.0
+    reach = np.ceil(span / spacing)
+    lines = np.arange(-reach, reach + 1) * spacing
+    for p in spacing * np.arange(_POSITIONS) / _POSITIONS:
+        at = lines - p
+        at = at[np.abs(at) <= span]
+        seen = np.interp(at, offsets, readings)
+        if seen.max() < worst:
+            worst, worst_offset = float(seen.max()), float(at[int(seen.argmax())])
+    return worst_offset, best
 
 
 def _gpr_medium(name: str, permittivity, conductivity):
@@ -607,7 +694,7 @@ def evaluate(target, survey=None, methods=DEFAULT_METHODS) -> Report:
                 results.append(MethodResult(method, False, f"unknown gravimeter {s.gravimeter!r}"))
                 continue
             noise = detect.effective_noise(inst, s.gravity_field_noise)
-            anomaly = _gravity(t, x, contrast) * SI_TO_UGAL
+            model = lambda xs, offset: _gravity(t, xs, contrast, offset) * SI_TO_UGAL      # noqa: E731
             res = MethodResult(method, True, contrast=contrast, contrast_units=units, instrument=s.gravimeter,
                                instrument_noise=inst, field_noise=s.gravity_field_noise)
         else:
@@ -623,7 +710,7 @@ def evaluate(target, survey=None, methods=DEFAULT_METHODS) -> Report:
                     results.append(MethodResult(method, False, f"unknown magnetometer {s.magnetometer!r}"))
                     continue
                 noise = detect.effective_noise(inst, s.magnetic_field_noise)
-                anomaly = _magnetic(t, x, contrast, amb, s)
+                model = lambda xs, offset: _magnetic(t, xs, contrast, amb, s, offset)      # noqa: E731
                 res = MethodResult(method, True, contrast=contrast, contrast_units=units, instrument=s.magnetometer,
                                    instrument_noise=inst, field_noise=s.magnetic_field_noise, main_field=info)
             else:
@@ -639,12 +726,37 @@ def evaluate(target, survey=None, methods=DEFAULT_METHODS) -> Report:
                 if baseline <= 0 or s.gradiometer_height < 0:
                     raise ValueError("gradiometer_baseline must be positive and gradiometer_height zero or positive")
                 noise = detect.effective_noise(inst, s.gradient_field_noise)
-                anomaly = _gradient(t, x, contrast, amb, s, baseline)
+                model = lambda xs, offset, b=baseline: _gradient(t, xs, contrast, amb, s, b, offset)   # noqa: E731
                 res = MethodResult(method, True, contrast=contrast, contrast_units=units, instrument=s.gradiometer,
                                    instrument_noise=inst, field_noise=s.gradient_field_noise, main_field=info)
         if noise <= 0:      # signal over nothing is not a signal-to-noise ratio
             raise ValueError(f"the effective {method} noise is zero: give an instrument or field noise above zero")
-        a = detect.assess(x, anomaly, noise, depth=t.depth_top, method=method)
+        between = s.line_spacing is not None and t.shape not in TWO_D
+        xs = x
+        if between:
+            height = {"gravity": 0.0, "magnetic": s.sensor_height, "gradient": s.gradiometer_height}[method]
+            xs = _line_profile(t, x, height, s.line_spacing)
+            scan = _line_profile(t, x, height, s.line_spacing, _SCAN)
+            extent = (t.length or t.size) / 2 if t.shape == "prism" else (t.size or 0.0) / 2
+            line_offset, best_offset = _between_lines(model, scan, s.line_spacing, _nearest(t, height), extent)
+            anomaly = model(xs, line_offset)
+        else:
+            anomaly = model(x, 0.0)
+        a = detect.assess(xs, anomaly, noise, depth=t.depth_top, method=method)
+        if between and a.shape != "none":
+            a.line_spacing, a.line_offset = s.line_spacing, line_offset
+            a.peak_over_target = float(np.abs(model(xs, 0.0)).max())
+            a.peak_best_line = max(float(np.abs(model(xs, best_offset)).max()), a.peak_over_target, a.peak)
+            a.assumptions.append(
+                f"Line spacing {s.line_spacing:g} m: parallel lines along the profile azimuth ({s.profile_azimuth:g}°). "
+                f"The target is placed where the survey reads least, and the profile assessed is the line that reads "
+                f"most there, {abs(line_offset):.3g} m to the side of the target: {a.peak:.3g} {a.units}, "
+                f"{100 * a.peak / a.peak_best_line:.0f} % of the best line a survey could fly "
+                f"({a.peak_best_line:.3g} {a.units}); a line through the target reads {a.peak_over_target:.3g} {a.units}.")
+            a.assumptions.append(LINE_SPACING_CAVEAT)
+        elif s.line_spacing is not None:
+            a.assumptions.append(f"Line spacing {s.line_spacing:g} m has no effect here: a 2D target is infinitely "
+                                 "long across the profile, so every line that crosses it reads the same.")
         preset = detect.INSTRUMENTS.get(res.instrument)
         overridden = {"gravity": s.gravity_instrument_noise, "magnetic": s.magnetic_instrument_noise,
                       "gradient": s.gradient_instrument_noise}[method] is not None
@@ -661,9 +773,14 @@ def evaluate(target, survey=None, methods=DEFAULT_METHODS) -> Report:
             a.assumptions.append(f"Reading: lower sensor ({s.gradiometer_height:g} m above ground) minus upper sensor "
                                  f"({top:g} m), in nT over the {baseline:g} m baseline; diurnal variation and the regional "
                                  f"field cancel. Profile azimuth {s.profile_azimuth:g}°; {_magnetisation_note(t)}.")
-        res.x, res.anomaly, res.assessment = x.round(4).tolist(), anomaly.tolist(), a
+        res.x, res.anomaly, res.assessment = xs.round(4).tolist(), anomaly.tolist(), a
         results.append(res)
 
+    if s.line_spacing is not None:
+        for r in results:
+            if r.available and r.method not in LINE_METHODS:
+                r.assessment.assumptions.append(f"Line spacing ({s.line_spacing:g} m) is not applied to this method: "
+                                                "the result is for a profile over the target.")
     ranked = sorted((r for r in results if r.available and r.assessment.verdict != "not detectable"),
                     key=lambda r: r.assessment.snr, reverse=True)
     return Report(__version__, asdict(t), asdict(s), methods, results, ranked[0].method if ranked else None)

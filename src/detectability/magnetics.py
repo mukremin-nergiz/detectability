@@ -63,19 +63,26 @@ def magnetisation(susceptibility: float, ambient: Ambient, remanence: tuple[floa
     return induced + intensity * unit_vector(inc, dec)
 
 
-def _profile_points(x, azimuth: float, height: float):
+def _profile_points(x, azimuth: float, height: float, offset: float = 0.0):
+    """(north, east, down) of the stations: ``x`` along the profile, ``offset`` metres to its right."""
     x = np.asarray(x, float)
     a = np.radians(azimuth)
-    return np.stack([x * np.cos(a), x * np.sin(a), np.full_like(x, -height)], axis=-1)
+    return np.stack([x * np.cos(a) - offset * np.sin(a), x * np.sin(a) + offset * np.cos(a),
+                     np.full_like(x, -height)], axis=-1)
 
 
 def sphere(x, depth: float, radius: float, susceptibility: float, ambient: Ambient, azimuth: float = 0.0,
-           height: float = 0.0, remanence=None):
-    """Buried sphere (dipole): cavity, ore body, buried object. ``depth`` is to the centre."""
+           height: float = 0.0, remanence=None, offset: float = 0.0):
+    """Buried sphere (dipole): cavity, ore body, buried object. ``depth`` is to the centre.
+
+    ``offset`` moves the profile sideways, for a survey line that does not pass over the body: the distance in metres
+    from the body to the line, measured to the right of the profile direction (as in ``pole_pair``). The same holds
+    for ``prism`` and ``vertical_cylinder``.
+    """
     if depth <= radius:
         raise ValueError("depth to the centre must exceed the radius (the sphere must be buried)")
     m = magnetisation(susceptibility, ambient, remanence) * (4.0 / 3.0 * np.pi * radius**3)
-    r = _profile_points(x, azimuth, height) - np.array([0.0, 0.0, depth])
+    r = _profile_points(x, azimuth, height, offset) - np.array([0.0, 0.0, depth])
     dist = np.linalg.norm(r, axis=-1, keepdims=True)
     rhat = r / dist
     b = MU0 / (4 * np.pi) * (3.0 * (rhat @ m)[..., None] * rhat - m) / dist**3
@@ -160,7 +167,8 @@ def _to_profile_frame(vec: np.ndarray, azimuth: float) -> np.ndarray:
 
 
 def prism(x, along1: float, along2: float, across1: float, across2: float, top: float, bottom: float,
-          susceptibility: float, ambient: Ambient, azimuth: float = 0.0, height: float = 0.0, remanence=None):
+          susceptibility: float, ambient: Ambient, azimuth: float = 0.0, height: float = 0.0, remanence=None,
+          offset: float = 0.0):
     """Right rectangular prism (room, foundation, buried block, tank) with sides parallel and perpendicular to the
     profile: [along1, along2] along it, [across1, across2] across it, from ``top`` to ``bottom`` depth.
 
@@ -173,13 +181,15 @@ def prism(x, along1: float, along2: float, across1: float, across2: float, top: 
         raise ValueError("the body must lie below the sensor (raise the sensor or bury the body)")
     m = _to_profile_frame(magnetisation(susceptibility, ambient, remanence), azimuth)
     f = _to_profile_frame(unit_vector(ambient.inclination, ambient.declination), azimuth)
-    t = prism_tensor(np.asarray(x, float), 0.0, along1, along2, across1, across2, top + height, bottom + height)
+    x = np.asarray(x, float)
+    t = prism_tensor(x, np.full_like(x, offset), along1, along2, across1, across2, top + height, bottom + height)
     return MU0 / (4 * np.pi) * np.einsum("i,...ij,j->...", f, t, m) * T_TO_NT
 
 
 def vertical_cylinder(x, top: float, bottom: float, radius: float, susceptibility: float, ambient: Ambient,
-                      azimuth: float = 0.0, height: float = 0.0, remanence=None):
-    """Vertical cylinder (shaft, well, sinkhole pipe) from ``top`` to ``bottom`` depth, axis on the profile at x = 0.
+                      azimuth: float = 0.0, height: float = 0.0, remanence=None, offset: float = 0.0):
+    """Vertical cylinder (shaft, well, sinkhole pipe) from ``top`` to ``bottom`` depth, axis on the profile at x = 0
+    (or ``offset`` metres to the left of it).
 
     Exact: from the cylinder's gravity gradient tensor (``gravity.vertical_cylinder_tensor``) by Poisson's relation,
     B = mu0 / (4 pi) * T M, as for the prism.
@@ -190,7 +200,8 @@ def vertical_cylinder(x, top: float, bottom: float, radius: float, susceptibilit
         raise ValueError("the body must lie below the sensor (raise the sensor or bury the body)")
     m = _to_profile_frame(magnetisation(susceptibility, ambient, remanence), azimuth)
     f = _to_profile_frame(unit_vector(ambient.inclination, ambient.declination), azimuth)
-    t = vertical_cylinder_tensor(np.asarray(x, float), 0.0, radius, top + height, bottom + height)
+    x = np.asarray(x, float)
+    t = vertical_cylinder_tensor(x, np.full_like(x, offset), radius, top + height, bottom + height)
     return MU0 / (4 * np.pi) * np.einsum("i,...ij,j->...", f, t, m) * T_TO_NT
 
 

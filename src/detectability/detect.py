@@ -109,6 +109,12 @@ class Assessment:
     profile_length: float       # recommended minimum profile length, m
     assumptions: list[str] = field(default_factory=list)
     units: str = "µGal"
+    # Set only when the survey gives a line spacing and the target is compact (see ``survey.evaluate``): the figures
+    # above are then those of the worst case between two lines, and these say what they are measured against.
+    line_spacing: float | None = None       # m between the parallel survey lines
+    line_offset: float | None = None        # m from the target to the line assessed, to the right of the profile
+    peak_over_target: float | None = None   # largest |anomaly| on a line through the target, in ``units``
+    peak_best_line: float | None = None     # largest |anomaly| on the best line any survey could fly, in ``units``
 
     def to_dict(self) -> dict:
         return asdict(self)
