@@ -22,7 +22,7 @@ the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.2393181
   across-line coordinate fixed at zero.
 - Every result that uses a line spacing carries the sentence that it is the worst case of an ideal survey (straight,
   evenly spaced lines, constant height, flat ground) and that the one published line-thinning measurement found
-  (Wang and others, 2026, doi:10.1021/acs.est.6c02007) recovered less than the calculation gives at every spacing.
+  (Wang et al., 2026, doi:10.1021/acs.est.6c02007) recovered less than the calculation gives at every spacing.
   The comparison is a test (`tests/test_line_spacing.py`): a consistency check on one well, not a validation.
 - Tests: the offset against a profile turned through a right angle and against the independent pole-pair code; the
   gravity worst case at the midpoint in closed form; wider lines never read more; `spacing_limit()` brackets its

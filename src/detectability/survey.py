@@ -449,11 +449,11 @@ def _gradient(t: Target, x, chi, amb, s: Survey, baseline: float, offset: float 
 LINE_METHODS = ("gravity", "magnetic", "gradient")     # methods a line spacing is applied to
 #: Said in every result that uses a line spacing. The comparison behind it is tests/test_line_spacing.py.
 LINE_SPACING_CAVEAT = (
-    "The line spacing is assessed for an ideal survey: straight, evenly spaced lines at constant height over flat "
-    "ground. A real survey can lose more. In the one published line-thinning test found (Wang and others, 2026, "
-    "doi:10.1021/acs.est.6c02007: a drone magnetic survey over one buried well casing on a steep hillside, sensor "
-    "about 35 m above ground) the "
-    "measured recovery was lower than this calculation gives at every spacing, and increasingly so above 30 m.")
+    "This is the worst case for an ideal survey: straight, evenly spaced lines flown at constant height over flat "
+    "ground. A real survey can lose more signal. In the only published line-spacing test we found (Wang et al., 2026, "
+    "doi:10.1021/acs.est.6c02007), a drone magnetic survey over a single buried well casing on a steep hillside with "
+    "the sensor about 35 m above ground, the share of the signal recovered was lower than this calculation predicts "
+    "at every spacing, and the gap widened at spacings above 30 m.")
 _POSITIONS = 200      # target positions tried between two lines (even: the midpoint is one of them)
 _SCAN = 401           # stations along a line while scanning; the line finally assessed uses the full profile
 

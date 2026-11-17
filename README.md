@@ -102,7 +102,7 @@ applied.
 
 **It is the worst case of an ideal survey**: straight, evenly spaced lines at constant height over flat ground. The
 one published line-thinning measurement found is a drone magnetic survey over a buried well casing on a steep
-hillside (Wang and others, 2026, [doi:10.1021/acs.est.6c02007](https://doi.org/10.1021/acs.est.6c02007)): with the
+hillside (Wang et al., 2026, [doi:10.1021/acs.est.6c02007](https://doi.org/10.1021/acs.est.6c02007)): with the
 well midway between the lines kept, the measured peak was about 87, 78 and 57 % of the dense survey's at 20, 30 and
 40 m spacing, where this calculation gives 95, 87 and 77 % (north-south lines; the paper does not give the line
 direction, and puts the gap at 40 m and beyond down to height variation over steep terrain). One well is a
