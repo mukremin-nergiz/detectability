@@ -6,6 +6,8 @@ the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.2393181
 
 ## [0.9.0] - 2026-11-18
 
+DOI [10.5281/zenodo.24327334](https://doi.org/10.5281/zenodo.24327334)
+
 ### Added
 - `Survey.line_spacing` (m between parallel survey lines, which run along `profile_azimuth`). Given, a compact target
   (`sphere`, `vertical_cylinder`, `prism`) is assessed for gravity, magnetic and gradient where the survey reads
