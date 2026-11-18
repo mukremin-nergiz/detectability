@@ -36,7 +36,7 @@ print(report.summary())
 ```
 
 ```text
-Detectability 0.8.0: sphere in limestone
+Detectability 0.9.0: sphere in limestone
 - gravity: peak 114 µGal, noise 11.2 µGal, S/N 10.2: clearly detectable
   stations every 5 m or less, profile at least 153 m long
 - magnetic: peak 0.462 nT, noise 2 nT, S/N 0.231: not detectable
@@ -86,7 +86,7 @@ print(spacing_limit(cavity, method="gravity"))
 ```
 
 ```text
-Detectability 0.8.0: sphere in limestone
+Detectability 0.9.0: sphere in limestone
 - gravity: peak 63 µGal, noise 11.2 µGal, S/N 5.64: clearly detectable
   worst case between lines 40 m apart: 35 % of the best line (178 µGal); an ideal survey, see the assumptions
   stations every 5 m or less, profile at least 173 m long
@@ -227,7 +227,7 @@ with what the survey showed, or report a result that looks wrong. See
 
 See [CITATION.cff](https://github.com/mukremin-nergiz/detectability/blob/main/CITATION.cff), or:
 
-> Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.8.0) [Computer software].
+> Nergiz, M. (2026). *Detectability: Pre-survey detectability, modelled and reproducible* (Version 0.9.0) [Computer software].
 > Zenodo. https://doi.org/10.5281/zenodo.23931815
 
 The DOI above always resolves to the latest version; each release also has its own DOI on Zenodo. Changes between

@@ -1,6 +1,6 @@
 """Detectability: pre-survey detectability, modelled and reproducible."""
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 from .limits import Limit, SpacingLimit, depth_limit, spacing_limit  # noqa: E402
 from .survey import DEFAULT_METHODS, METHODS, SHAPES, Report, Survey, Target, evaluate  # noqa: E402

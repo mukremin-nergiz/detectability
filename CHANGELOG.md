@@ -4,7 +4,7 @@ All notable changes to Detectability. The format follows [Keep a Changelog](http
 and the project uses [semantic versioning](https://semver.org/). Each release is archived on Zenodo with its own DOI;
 the concept DOI [10.5281/zenodo.23931815](https://doi.org/10.5281/zenodo.23931815) always resolves to the latest.
 
-## [Unreleased]
+## [0.9.0] - 2026-11-18
 
 ### Added
 - `Survey.line_spacing` (m between parallel survey lines, which run along `profile_azimuth`). Given, a compact target
